@@ -80,8 +80,12 @@ data class GlobalContext(
                 .build()
         )
     }
-    val audioFadeIn: VolumeShaper get() = getAudioShaper(1, floatArrayOf(0f, 1f))
-    val audioFadeOut: VolumeShaper get() = getAudioShaper(1, floatArrayOf(1f, 0f))
+    val audioFadeIn: VolumeShaper get() = getAudioShaper(FADE_IN_TIME, floatArrayOf(0f, 1f))
+    val audioFadeOut: VolumeShaper get() = getAudioShaper(FADE_OUT_TIME, floatArrayOf(1f, 0f))
+    companion object {
+        const val FADE_IN_TIME = 1L
+        const val FADE_OUT_TIME = 1L
+    }
 }
 val globalContext = GlobalContext(MediaPlayer(), -1)
 data class AppState(val songs: List<Song>, val playing: Song?, val nonce: Int) {
@@ -122,7 +126,7 @@ fun App() {
     fun stopSong() {
         errPrint("Stopping playback")
         globalContext.audioFadeOut.apply(VolumeShaper.Operation.PLAY)
-        Thread.sleep(1)
+        Thread.sleep(GlobalContext.FADE_OUT_TIME)
         globalContext.mediaPlayer.stop()
         appState.value = appState.value.withPlaying(null)
     }
