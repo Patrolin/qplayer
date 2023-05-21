@@ -71,17 +71,17 @@ data class GlobalContext(
     var mediaPlayer: MediaPlayer,
     var prevSelectedTab: Int,
 ) {
-    private fun getAudioShaper(shape: FloatArray): VolumeShaper {
+    private fun getAudioShaper(duration: Long, shape: FloatArray): VolumeShaper {
         return mediaPlayer.createVolumeShaper(
             VolumeShaper.Configuration.Builder()
-                .setDuration(1)
-                .setCurve(floatArrayOf(0f, 1f), floatArrayOf(0f, 1f))
+                .setDuration(duration)
+                .setCurve(floatArrayOf(0f, 1f), shape)
                 .setInterpolatorType(VolumeShaper.Configuration.INTERPOLATOR_TYPE_CUBIC)
                 .build()
         )
     }
-    val audioFadeIn: VolumeShaper get() = getAudioShaper(floatArrayOf(0f, 1f))
-    val audioFadeOut: VolumeShaper get() = getAudioShaper(floatArrayOf(1f, 0f))
+    val audioFadeIn: VolumeShaper get() = getAudioShaper(1, floatArrayOf(0f, 1f))
+    val audioFadeOut: VolumeShaper get() = getAudioShaper(1, floatArrayOf(1f, 0f))
 }
 val globalContext = GlobalContext(MediaPlayer(), -1)
 data class AppState(val songs: List<Song>, val playing: Song?, val nonce: Int) {
@@ -130,8 +130,8 @@ fun App() {
         errPrint("Playing: $song")
         globalContext.mediaPlayer.reset()
         globalContext.mediaPlayer.setDataSource(song.path)
-        globalContext.mediaPlayer.prepare()
         globalContext.audioFadeIn.apply(VolumeShaper.Operation.PLAY)
+        globalContext.mediaPlayer.prepare()
         globalContext.mediaPlayer.start()
         appState.value = appState.value.withPlaying(song)
     }
