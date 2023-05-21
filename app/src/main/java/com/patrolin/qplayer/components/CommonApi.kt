@@ -4,6 +4,7 @@ import android.os.Build
 import android.os.Environment
 import com.patrolin.qplayer.appContext
 import java.io.BufferedInputStream
+import java.io.File
 
 fun getAndroidVersion() = Build.VERSION.RELEASE.replace("(\\d+[.]\\d+)(.*)","$1").toDouble()
 fun getAppName(): String {
@@ -12,8 +13,8 @@ fun getAppName(): String {
     return if (stringId == 0) appInfo.nonLocalizedLabel.toString() else appContext.getString(stringId)
 }
 
-fun getMusicFolder() = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_MUSIC)
-fun getVideoFolder() = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_MOVIES)
+fun getMusicFolder(): File = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_MUSIC)
+fun getVideoFolder(): File = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_MOVIES)
 
 data class Song(val path: String, val name: String, val artist: String)
 fun getSongs(): List<Song> {
