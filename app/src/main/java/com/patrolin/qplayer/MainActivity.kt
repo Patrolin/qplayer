@@ -35,6 +35,7 @@ import com.patrolin.qplayer.components.Title
 import com.patrolin.qplayer.components.errPrint
 import com.patrolin.qplayer.components.getPermissionsText
 import com.patrolin.qplayer.components.getSongs
+import com.patrolin.qplayer.components.onPermissionChange
 import com.patrolin.qplayer.components.requestPermissions
 import com.patrolin.qplayer.components.showToast
 import com.patrolin.qplayer.components.useDialog
@@ -54,6 +55,15 @@ class MainActivity : ComponentActivity() {
             }
         }
     }
+
+    override fun onRequestPermissionsResult(
+        requestCode: Int,
+        permissions: Array<out String>,
+        grantResults: IntArray
+    ) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+        onPermissionChange(requestCode)
+    }
 }
 
 data class GlobalContext(
@@ -61,11 +71,14 @@ data class GlobalContext(
     var prevSelectedTab: Int,
 )
 val globalContext = GlobalContext(MediaPlayer(), -1)
-data class AppState(val songs: List<Song>, val playing: Song?) {
+data class AppState(val songs: List<Song>, val playing: Song?, val nonce: Int) {
     val playingIndex: Int get() = songs.indexOfFirst { it == playing }
-    fun withSongs(newSongs: List<Song>): AppState = AppState(newSongs, playing)
+    fun withSongs(newSongs: List<Song>): AppState = AppState(newSongs, playing, nonce)
     fun withPlaying(newPlaying: Song?): AppState {
-        return AppState(songs, newPlaying)
+        return AppState(songs, newPlaying, nonce)
+    }
+    fun incrementNonce(): AppState {
+        return AppState(songs, playing, nonce + 1)
     }
 }
 
@@ -90,7 +103,7 @@ fun App() {
                 .padding(8.dp, 4.dp)
         )
     }
-    val appState = remember { mutableStateOf(AppState(listOf(), null)) }
+    val appState = remember { mutableStateOf(AppState(listOf(), null, 0)) }
     var mediaPlayer = MediaPlayer()
     fun stopSong() {
         errPrint("Stopping playback")
@@ -117,12 +130,16 @@ fun App() {
     // TODO: https://developer.android.com/guide/topics/media-apps/audio-focus#audio-focus-change
     Column() {
         useTabs(0, listOf("Songs", "Playlists"), rightBlock=rightBlock) { selectedTab ->
+            val haveReadPermissions = requestPermissions(*READ_PERMISSIONS) {
+                globalContext.prevSelectedTab = -1
+                appState.value = appState.value.incrementNonce()
+            }
             if (selectedTab != globalContext.prevSelectedTab)
                 appState.value = appState.value.withSongs(getSongs())
             globalContext.prevSelectedTab = selectedTab
             when (selectedTab) {
                 0 -> {
-                    if (!requestPermissions(*READ_PERMISSIONS)) {
+                    if (!haveReadPermissions) {
                         Text(getPermissionsText("read"))
                     } else if (appState.value.songs.isEmpty()) {
                         Text("No songs yet, try adding a Youtube playlist or adding songs to your Music folder!")

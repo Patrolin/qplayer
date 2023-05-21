@@ -3,6 +3,7 @@ package com.patrolin.qplayer.components
 import android.Manifest
 import android.content.pm.PackageManager
 import android.widget.Toast
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import com.patrolin.qplayer.appContext
@@ -16,12 +17,23 @@ fun getPermissionsText(type: String): String {
 fun hasPermissions(vararg permissions: String): Boolean {
     return permissions.all { ContextCompat.checkSelfPermission(appContext, it) == PackageManager.PERMISSION_GRANTED }
 }
-fun requestPermissions(vararg permissions: String): Boolean {
-    val havePermissions = hasPermissions(*permissions)
-    if (!havePermissions) {
-        ActivityCompat.requestPermissions(appContext, permissions, 1)
+
+var permissionRequestNonce = 0
+typealias PermissionRequestCallback = () -> Unit
+var ongoingPermissionRequests = hashMapOf<Int, PermissionRequestCallback>()
+fun onPermissionChange(requestCode: Int) {
+    val lambda = ongoingPermissionRequests[requestCode]
+    lambda?.invoke()
+    ongoingPermissionRequests.remove(requestCode)
+}
+fun requestPermissions(vararg permissions: String, callback: PermissionRequestCallback): Boolean {
+    val hadPermissions = hasPermissions(*permissions)
+    if (!hadPermissions) {
+        //errPrint("Requesting permissions: $permissionRequestNonce, ${permissions.toList()}")
+        ongoingPermissionRequests[permissionRequestNonce] = callback
+        ActivityCompat.requestPermissions(appContext, permissions, permissionRequestNonce)
     }
-    return havePermissions
+    return hadPermissions
 }
 val READ_PERMISSIONS: Array<String> get() {
     return if (getAndroidVersion() < 13) {

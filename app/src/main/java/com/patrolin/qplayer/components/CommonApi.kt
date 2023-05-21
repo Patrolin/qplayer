@@ -29,6 +29,6 @@ fun getSongs(): List<Song> {
         }
         Song(fd.absolutePath, fd.name, "---")
     }.toList()
-    errPrint("Got songs!")
+    errPrint("Found ${songs.size} songs!")
     return songs.sortedBy { it.name }
 }
