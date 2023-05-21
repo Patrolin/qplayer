@@ -56,9 +56,21 @@ class MainActivity : ComponentActivity() {
     }
 }
 
+data class GlobalContext(
+    var mediaPlayer: MediaPlayer,
+    var prevSelectedTab: Int,
+)
+val globalContext = GlobalContext(MediaPlayer(), -1)
+data class AppState(val songs: List<Song>, val playing: Song?) {
+    val playingIndex: Int get() = songs.indexOfFirst { it == playing }
+    fun withSongs(newSongs: List<Song>): AppState = AppState(newSongs, playing)
+    fun withPlaying(newPlaying: Song?): AppState {
+        return AppState(songs, newPlaying)
+    }
+}
+
 @Composable
 fun App() {
-    val mediaPlayer = MediaPlayer()
     val aboutDialog = useDialog() {
         Column() {
             Title("Qplayer (Unlicense)")
@@ -78,55 +90,50 @@ fun App() {
                 .padding(8.dp, 4.dp)
         )
     }
-    var needSongs = true
-    var songs = listOf<Song>()
-    var outerCurrentlyPlayingIndex = -1
-    val currentlyPlaying = remember { mutableStateOf<Song?>(null) }
+    val appState = remember { mutableStateOf(AppState(listOf(), null)) }
+    var mediaPlayer = MediaPlayer()
+    fun stopSong() {
+        errPrint("Stopping playback")
+        globalContext.mediaPlayer.stop()
+        appState.value = appState.value.withPlaying(null)
+    }
     fun playSong(song: Song) {
         errPrint("Playing: $song")
-        currentlyPlaying.value = song
-        mediaPlayer.reset()
-        mediaPlayer.setDataSource(song.path)
-        mediaPlayer.setVolume(1f, 1f)
-        mediaPlayer.prepare()
-        mediaPlayer.start()
-    }
-    fun stopSong() {
-        mediaPlayer.setVolume(0f, 0f)
-        mediaPlayer.stop()
-        currentlyPlaying.value = null
+        globalContext.mediaPlayer.reset()
+        globalContext.mediaPlayer.setDataSource(song.path)
+        globalContext.mediaPlayer.prepare()
+        globalContext.mediaPlayer.start()
+        appState.value = appState.value.withPlaying(song)
     }
     mediaPlayer.setOnCompletionListener {
-        val nextIndex = outerCurrentlyPlayingIndex + 1
-        if (nextIndex < songs.size) {
-            playSong(songs[nextIndex])
+        val nextIndex = appState.value.playingIndex + 1
+        if (nextIndex < appState.value.songs.size) {
+            playSong(appState.value.songs[nextIndex])
+        } else {
+            appState.value = appState.value.withPlaying(null)
         }
     }
     // TODO: listen to permission change
     // TODO: https://developer.android.com/guide/topics/media-apps/audio-focus#audio-focus-change
     Column() {
         useTabs(0, listOf("Songs", "Playlists"), rightBlock=rightBlock) { selectedTab ->
-            if (selectedTab != 0) needSongs = true
+            if (selectedTab != globalContext.prevSelectedTab)
+                appState.value = appState.value.withSongs(getSongs())
+            globalContext.prevSelectedTab = selectedTab
             when (selectedTab) {
                 0 -> {
-                    if (needSongs) {
-                        songs = getSongs()
-                        needSongs = false
-                    }
                     if (!requestPermissions(*READ_PERMISSIONS)) {
                         Text(getPermissionsText("read"))
-                    } else if (songs.isEmpty()) {
+                    } else if (appState.value.songs.isEmpty()) {
                         Text("No songs yet, try adding a Youtube playlist or adding songs to your Music folder!")
                     } else {
-                        val currentlyPlayingIndex = songs.indexOfFirst { it == currentlyPlaying.value }
-                        outerCurrentlyPlayingIndex = currentlyPlayingIndex
                         LazyColumn(Modifier.weight(1f)) {
                             items(
-                                count = songs.size,
+                                count = appState.value.songs.size,
                                 key = { it },
                                 itemContent = {
-                                    val song = songs[it]
-                                    val isCurrentlyPlaying = (it == currentlyPlayingIndex)
+                                    val song = appState.value.songs[it]
+                                    val isCurrentlyPlaying = (it == appState.value.playingIndex)
                                     SongRow(song.name, song.artist, isCurrentlyPlaying) {
                                         if (isCurrentlyPlaying) {
                                             stopSong()
@@ -149,8 +156,8 @@ fun App() {
                 }
             }
         }
-        Row(Modifier.padding(4.dp, 8.dp, 4.dp, 4.dp)) {
-            Text(currentlyPlaying.value?.name.orEmpty())
+        Row(Modifier.padding(16.dp, 8.dp, 16.dp, 4.dp)) {
+            Text(appState.value.playing?.name.orEmpty())
         }
     }
 }
