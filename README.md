@@ -1,2 +1,2 @@
 # qplayer
-A simple music player
+A simple Android music player
