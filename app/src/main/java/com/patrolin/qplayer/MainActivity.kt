@@ -1,6 +1,7 @@
 package com.patrolin.qplayer
 
 import android.media.MediaPlayer
+import android.media.VolumeShaper
 import android.os.Bundle
 import android.widget.Toast
 import androidx.activity.ComponentActivity
@@ -69,7 +70,19 @@ class MainActivity : ComponentActivity() {
 data class GlobalContext(
     var mediaPlayer: MediaPlayer,
     var prevSelectedTab: Int,
-)
+) {
+    private fun getAudioShaper(shape: FloatArray): VolumeShaper {
+        return mediaPlayer.createVolumeShaper(
+            VolumeShaper.Configuration.Builder()
+                .setDuration(1)
+                .setCurve(floatArrayOf(0f, 1f), floatArrayOf(0f, 1f))
+                .setInterpolatorType(VolumeShaper.Configuration.INTERPOLATOR_TYPE_CUBIC)
+                .build()
+        )
+    }
+    val audioFadeIn: VolumeShaper get() = getAudioShaper(floatArrayOf(0f, 1f))
+    val audioFadeOut: VolumeShaper get() = getAudioShaper(floatArrayOf(1f, 0f))
+}
 val globalContext = GlobalContext(MediaPlayer(), -1)
 data class AppState(val songs: List<Song>, val playing: Song?, val nonce: Int) {
     val playingIndex: Int get() = songs.indexOfFirst { it == playing }
@@ -87,6 +100,7 @@ fun App() {
     val aboutDialog = useDialog() {
         Column() {
             Title("Qplayer (Unlicense)")
+            // TODO: github icons
             //Icon(Icons.Filled.Github)
             Title("yt-dlp (Unlicense)")
             //Icon(Icons.Filled.Github)
@@ -107,6 +121,8 @@ fun App() {
     var mediaPlayer = MediaPlayer()
     fun stopSong() {
         errPrint("Stopping playback")
+        globalContext.audioFadeOut.apply(VolumeShaper.Operation.PLAY)
+        Thread.sleep(1)
         globalContext.mediaPlayer.stop()
         appState.value = appState.value.withPlaying(null)
     }
@@ -115,6 +131,7 @@ fun App() {
         globalContext.mediaPlayer.reset()
         globalContext.mediaPlayer.setDataSource(song.path)
         globalContext.mediaPlayer.prepare()
+        globalContext.audioFadeIn.apply(VolumeShaper.Operation.PLAY)
         globalContext.mediaPlayer.start()
         appState.value = appState.value.withPlaying(song)
     }
@@ -169,12 +186,16 @@ fun App() {
                     }
                 }
                 1 -> {
-                    Text("TODO: playlists")
+                    Row(Modifier.weight(1f)) {
+                        Text("TODO: playlists")
+                    }
                 }
             }
         }
         Row(Modifier.padding(16.dp, 8.dp, 16.dp, 4.dp)) {
             Text(appState.value.playing?.name.orEmpty())
+            // TODO: pause button
+            // TODO: shuffle toggle
         }
     }
 }

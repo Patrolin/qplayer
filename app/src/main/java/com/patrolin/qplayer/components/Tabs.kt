@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
+import androidx.compose.foundation.layout.absolutePadding
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -59,12 +60,12 @@ fun useTabs(
 
 @Composable
 fun TabButton(text: String, isSelected: Boolean, onClick: () -> Unit) {
-    Column(Modifier.clickable { onClick() }) {
-        Title(text, Modifier.padding(8.dp, 4.dp))
+    Column(Modifier.clickable { onClick() }.padding(0.dp, 0.dp, 0.dp, 2.dp)) {
+        Title(text, Modifier.padding(12.dp, 4.dp))
         val highlightAlpha = if (isSelected) 1f else 0f
         Row(Modifier
             .alpha(highlightAlpha)
-            .size(24.dp, 1.dp)
+            .size(20.dp, 1.dp)
             .background(MaterialTheme.colorScheme.primary)
             .align(Alignment.CenterHorizontally)) {}
     }
