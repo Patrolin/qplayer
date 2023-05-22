@@ -18,19 +18,21 @@ fun getMusicFolder(): File = Environment.getExternalStoragePublicDirectory(Envir
 fun getVideoFolder(): File = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_MOVIES)
 
 data class Song(val path: String, val name: String, val artist: String)
-fun getSongs(): List<Song> {
-    errPrint("Getting songs...")
-    val buffer = ByteArray(128)
-    var i = 0
-    val songs = getMusicFolder().walk().filter { it.isFile }.map { fd ->
-        val bufferedReader = BufferedInputStream(File(fd.absolutePath).inputStream(), 128)
-        bufferedReader.read(buffer)
-        bufferedReader.close()
-        if (i++ < 3) {
-            errPrint(buffer.map { it }.joinToString(" ") { it.toUByte().toString() })
-        }
-        Song(fd.absolutePath, fd.name, "---")
-    }.toList()
-    errPrint("Found ${songs.size} songs!")
-    return songs.sortedBy { it.name }
+fun getSongsAsync(): Promise<List<Song>> {
+    return Promise {
+        errPrint("Getting songs...")
+        val buffer = ByteArray(128)
+        var i = 0
+        val songs = getMusicFolder().walk().filter { it.isFile }.map { fd ->
+            val bufferedReader = BufferedInputStream(File(fd.absolutePath).inputStream(), 128)
+            bufferedReader.read(buffer)
+            bufferedReader.close()
+            if (i++ < 3) {
+                errPrint(buffer.map { it }.joinToString(" ") { it.toUByte().toString() })
+            }
+            Song(fd.absolutePath, fd.name, "---")
+        }.toList()
+        errPrint("Found ${songs.size} songs!")
+        resolve(songs.sortedBy { it.name })
+    }
 }

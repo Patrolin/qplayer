@@ -26,6 +26,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.patrolin.qplayer.components.DialogState
 import com.patrolin.qplayer.components.Icons
+import com.patrolin.qplayer.components.Promise
+import com.patrolin.qplayer.components.PromiseState
 import com.patrolin.qplayer.components.READ_PERMISSIONS
 import com.patrolin.qplayer.components.SUBTITLE_COLOR
 import com.patrolin.qplayer.components.Song
@@ -36,7 +38,7 @@ import com.patrolin.qplayer.components.TextColor
 import com.patrolin.qplayer.components.Title
 import com.patrolin.qplayer.components.errPrint
 import com.patrolin.qplayer.components.getPermissionsText
-import com.patrolin.qplayer.components.getSongs
+import com.patrolin.qplayer.components.getSongsAsync
 import com.patrolin.qplayer.components.onPermissionChange
 import com.patrolin.qplayer.components.openURL
 import com.patrolin.qplayer.components.requestPermissions
@@ -97,10 +99,14 @@ object GlobalContext {
     const val FADE_IN_TIME = 1L
     const val FADE_OUT_TIME = 1L
 }
-data class AppState(val songs: List<Song> = listOf(), val current: Song? = null) {
-    fun withSongs(newSongs: List<Song>): AppState = AppState(newSongs, current)
+data class AppState(
+    val songsLoading: Boolean = false,
+    val songs: List<Song> = listOf(),
+    val current: Song? = null
+) {
+    fun withSongs(newSongs: Promise<List<Song>>): AppState = AppState(newSongs.state == PromiseState.LOADING, newSongs.value ?: listOf(), current)
     fun withCurrent(newCurrent: Song?): AppState {
-        return AppState(songs, newCurrent)
+        return AppState(songsLoading, songs, newCurrent)
     }
     val currentIndex: Int get() = songs.indexOfFirst { it == current }
 }
@@ -129,7 +135,6 @@ fun App() {
         setNonce(nonce + 1)
     }
 
-    errPrint("appState: ${nonce}, ${getState().songs.size}, ${getState().current}")
     fun playSong(song: Song) {
         errPrint("Playing: $song")
         GlobalContext.mediaPlayer.reset()
@@ -177,8 +182,18 @@ fun App() {
                 setState(getState().copy())
             }
             if (selectedTab != GlobalContext.prevSelectedTab) {
-                errPrint("Tab changed, ${GlobalContext.prevSelectedTab} -> $selectedTab")
-                setState(getState().withSongs(getSongs()))
+                errPrint("--- Tab changed, ${GlobalContext.prevSelectedTab} -> $selectedTab")
+                if (!getState().songsLoading) {
+                    val songsPromise = getSongsAsync()
+                    setState(getState().withSongs(songsPromise))
+                    errPrint("getState().1: ${getState()}")
+                    songsPromise.then {
+                        errPrint("getSongsAsync.then(): $it")
+                        setState(getState().withSongs(it))
+                        errPrint("getState().2: ${getState()}")
+                        setState(getState().withSongs(it))
+                    }
+                }
             }
             GlobalContext.prevSelectedTab = selectedTab
             errPrint("useTabs.appState: ${nonce}, ${getState().songs.size}, ${getState().current}")
@@ -187,6 +202,8 @@ fun App() {
                     // TODO: async get songs
                     if (!haveReadPermissions) {
                         Text(getPermissionsText("read"), Modifier.weight(1f))
+                    } else if (getState().songsLoading) {
+                        Text("Loading...", Modifier.weight(1f))
                     } else if (getState().songs.isEmpty()) {
                         Text("No songs yet, try adding a Youtube playlist or adding songs to your Music folder!", Modifier.weight(1f))
                     } else {
