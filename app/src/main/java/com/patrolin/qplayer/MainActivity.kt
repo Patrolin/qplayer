@@ -97,12 +97,12 @@ object GlobalContext {
     const val FADE_IN_TIME = 1L
     const val FADE_OUT_TIME = 1L
 }
-data class AppState(val songs: List<Song> = listOf(), val playing: Song? = null) {
-    val playingIndex: Int get() = songs.indexOfFirst { it == playing }
-    fun withSongs(newSongs: List<Song>): AppState = AppState(newSongs, playing)
-    fun withPlaying(newPlaying: Song?): AppState {
-        return AppState(songs, newPlaying)
+data class AppState(val songs: List<Song> = listOf(), val current: Song? = null) {
+    fun withSongs(newSongs: List<Song>): AppState = AppState(newSongs, current)
+    fun withCurrent(newCurrent: Song?): AppState {
+        return AppState(songs, newCurrent)
     }
+    val currentIndex: Int get() = songs.indexOfFirst { it == current }
 }
 
 @Composable
@@ -129,7 +129,7 @@ fun App() {
         setNonce(nonce + 1)
     }
 
-    errPrint("appState: ${nonce}, ${getState().songs.size}, ${getState().playing}")
+    errPrint("appState: ${nonce}, ${getState().songs.size}, ${getState().current}")
     fun playSong(song: Song) {
         errPrint("Playing: $song")
         GlobalContext.mediaPlayer.reset()
@@ -137,7 +137,7 @@ fun App() {
         GlobalContext.audioFadeIn.apply(VolumeShaper.Operation.PLAY)
         GlobalContext.mediaPlayer.prepare()
         GlobalContext.mediaPlayer.start()
-        setState(getState().withPlaying(song))
+        setState(getState().withCurrent(song))
     }
     fun pauseSong() {
         if (GlobalContext.mediaPlayer.isPlaying) {
@@ -157,15 +157,15 @@ fun App() {
         GlobalContext.audioFadeOut.apply(VolumeShaper.Operation.PLAY)
         Thread.sleep(GlobalContext.FADE_OUT_TIME)
         GlobalContext.mediaPlayer.stop()
-        setState(getState().withPlaying(null))
+        setState(getState().withCurrent(null))
     }
     GlobalContext.onCompletionListener = {
-        errPrint("Song completed: ${getState().songs.size}, ${getState().playing}")
-        val nextIndex = getState().playingIndex + 1
+        errPrint("Song completed: ${getState().songs.size}, ${getState().current}")
+        val nextIndex = getState().currentIndex + 1
         if (nextIndex < getState().songs.size) {
             playSong(getState().songs[nextIndex])
         } else {
-            setState(getState().withPlaying(null))
+            setState(getState().withCurrent(null))
         }
     }
     // TODO: https://developer.android.com/guide/topics/media-apps/audio-focus#audio-focus-change
@@ -181,7 +181,7 @@ fun App() {
                 setState(getState().withSongs(getSongs()))
             }
             GlobalContext.prevSelectedTab = selectedTab
-            errPrint("useTabs.appState: ${nonce}, ${getState().songs.size}, ${getState().playing}")
+            errPrint("useTabs.appState: ${nonce}, ${getState().songs.size}, ${getState().current}")
             when (selectedTab) {
                 0 -> {
                     // TODO: async get songs
@@ -196,7 +196,7 @@ fun App() {
                                 key = { it },
                                 itemContent = {
                                     val song = getState().songs[it]
-                                    val isCurrentlyPlaying = (it == getState().playingIndex)
+                                    val isCurrentlyPlaying = (it == getState().currentIndex)
                                     SongRow(song.name, song.artist, isCurrentlyPlaying) {
                                         if (isCurrentlyPlaying) {
                                             stopSong()
@@ -222,9 +222,10 @@ fun App() {
             }
         }
         Row(Modifier.padding(16.dp, 8.dp, 16.dp, 4.dp)) {
-            Title(getState().playing?.name.orEmpty(), modifier = Modifier
+            Title(getState().current?.name.orEmpty(), modifier = Modifier
                 .padding(0.dp, 0.dp, 4.dp, 0.dp)
                 .weight(1f), wrap = false)
+            // TODO: track isPaused
             if (GlobalContext.mediaPlayer.isPlaying)
                 Icons.PauseIcon(color = TITLE_COLOR, modifier = Modifier.clickable { pauseSong() })
             else
