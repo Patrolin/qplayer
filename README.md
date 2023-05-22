@@ -35,5 +35,6 @@ Pairing a physical device:
     Disconnect USB cable
 Adding icon:
   Right click on res/drawable > New -> Vector asset > Clip art
-Jetpack Compose state is retarded, you must use the following:
-  `val (nonce, setNonce) = remember { mutableStateOf(0) }`
+Jetpack Compose state is retarded, you must use exactly the following:
+  `val (nonce, setNonce) = rememberSaveable { mutableStateOf(0, neverEqualPolicy()) }`
+  `fun incrementNonce() { setNonce(nonce + 1) }`
