@@ -23,7 +23,7 @@ fun getSongs(): List<Song> {
     val buffer = ByteArray(128)
     var i = 0
     val songs = getMusicFolder().walk().filter { it.isFile }.map { fd ->
-        val bufferedReader = BufferedInputStream(fd.inputStream(), 128)
+        val bufferedReader = BufferedInputStream(File(fd.absolutePath).inputStream(), 128)
         bufferedReader.read(buffer)
         bufferedReader.close()
         if (i++ < 3) {

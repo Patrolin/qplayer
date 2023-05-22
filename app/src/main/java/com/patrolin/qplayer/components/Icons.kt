@@ -1,7 +1,7 @@
 package com.patrolin.qplayer.components
 
+import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.outlined.Info
-import androidx.compose.material.icons.outlined.PlayArrow
 import androidx.compose.material3.Icon
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
@@ -23,7 +23,7 @@ object Icons {
     }
     // controls
     @Composable fun PlayIcon(color: Color, modifier: Modifier = Modifier) {
-        return BaseIcon(androidx.compose.material.icons.Icons.Outlined.PlayArrow, "Play", color, modifier)
+        return BaseIcon(androidx.compose.material.icons.Icons.Filled.PlayArrow, "Play", color, modifier)
     }
     @Composable fun PauseIcon(color: Color, modifier: Modifier = Modifier) {
         return BaseIcon(ImageVector.vectorResource(id = R.drawable.baseline_pause_24), "Pause", color, modifier)
