@@ -11,6 +11,7 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.sp
 
+val PRIMARY_COLOR @Composable get() = MaterialTheme.colorScheme.primary
 val TITLE_COLOR @Composable get() = MaterialTheme.colorScheme.onSurface
 val SUBTITLE_COLOR @Composable get() = getSubtitleColor(TITLE_COLOR)
 @Composable fun getSubtitleColor(color: Color) = color.copy(0.6f)
@@ -66,6 +67,7 @@ fun Text(text: String, modifier: Modifier = Modifier) {
         fontWeight = FontWeight.Normal,
         fontFamily = FontFamily.Serif,
         color = TITLE_COLOR,
+        modifier = modifier,
     )
 }
 @Composable
@@ -76,6 +78,7 @@ fun Monospace(text: String, modifier: Modifier = Modifier) {
         fontWeight = FontWeight.Normal,
         fontFamily = FontFamily.Monospace,
         color = TITLE_COLOR,
+        modifier = modifier,
     )
 }
 

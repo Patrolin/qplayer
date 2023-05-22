@@ -1,13 +1,19 @@
 package com.patrolin.qplayer.components
 
 import android.Manifest
+import android.annotation.SuppressLint
+import android.content.Intent
 import android.content.pm.PackageManager
+import android.net.Uri
 import android.widget.Toast
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import com.patrolin.qplayer.appContext
 
+fun openURL(url: String) {
+    val intent = Intent(Intent.ACTION_VIEW, Uri.parse(url))
+    ContextCompat.startActivity(appContext, intent, null)
+}
 fun showToast(text: String, length: Int = Toast.LENGTH_SHORT) {
     Toast.makeText(appContext, text, length).show()
 }
@@ -35,8 +41,8 @@ fun requestPermissions(vararg permissions: String, callback: PermissionRequestCa
     }
     return hadPermissions
 }
-val READ_PERMISSIONS: Array<String> get() {
-    return if (getAndroidVersion() < 13) {
+val READ_PERMISSIONS: Array<String> @SuppressLint("NewApi") get() {
+    return if (getAndroidAPIVersion() < 33) {
         arrayOf(Manifest.permission.READ_EXTERNAL_STORAGE)
     } else {
         arrayOf(Manifest.permission.READ_MEDIA_AUDIO)

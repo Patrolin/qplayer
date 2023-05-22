@@ -6,7 +6,8 @@ import com.patrolin.qplayer.appContext
 import java.io.BufferedInputStream
 import java.io.File
 
-fun getAndroidVersion() = Build.VERSION.RELEASE.replace("(\\d+[.]\\d+)(.*)","$1").toDouble()
+fun _getAndroidVersion() = Build.VERSION.RELEASE.replace("(\\d+[.]\\d+)(.*)","$1").toDouble()
+fun getAndroidAPIVersion() = Build.VERSION.SDK_INT
 fun getAppName(): String {
     val appInfo = appContext.applicationInfo
     val stringId = appInfo.labelRes

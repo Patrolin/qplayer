@@ -14,22 +14,23 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.Info
-import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.patrolin.qplayer.components.DialogState
+import com.patrolin.qplayer.components.Icons
 import com.patrolin.qplayer.components.READ_PERMISSIONS
 import com.patrolin.qplayer.components.SUBTITLE_COLOR
 import com.patrolin.qplayer.components.Song
 import com.patrolin.qplayer.components.SubTitle
+import com.patrolin.qplayer.components.TITLE_COLOR
 import com.patrolin.qplayer.components.Text
 import com.patrolin.qplayer.components.TextColor
 import com.patrolin.qplayer.components.Title
@@ -37,6 +38,7 @@ import com.patrolin.qplayer.components.errPrint
 import com.patrolin.qplayer.components.getPermissionsText
 import com.patrolin.qplayer.components.getSongs
 import com.patrolin.qplayer.components.onPermissionChange
+import com.patrolin.qplayer.components.openURL
 import com.patrolin.qplayer.components.requestPermissions
 import com.patrolin.qplayer.components.showToast
 import com.patrolin.qplayer.components.useDialog
@@ -57,13 +59,15 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    @Suppress("OVERRIDE_DEPRECATION", "DEPRECATION")
     override fun onRequestPermissionsResult(
         requestCode: Int,
         permissions: Array<out String>,
         grantResults: IntArray
     ) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults)
-        onPermissionChange(requestCode)
+        if (permissions.isNotEmpty())
+            onPermissionChange(requestCode)
     }
 }
 
@@ -102,34 +106,22 @@ data class AppState(val songs: List<Song>, val playing: Song?, val nonce: Int) {
 @Composable
 fun App() {
     val aboutDialog = useDialog() {
-        Column() {
-            Title("Qplayer (Unlicense)")
-            // TODO: github icons
-            //Icon(Icons.Filled.Github)
-            Title("yt-dlp (Unlicense)")
-            //Icon(Icons.Filled.Github)
+        Column(Modifier.padding(4.dp)) {
+            Title("About", Modifier.padding(4.dp, 0.dp, 0.dp, 0.dp))
+            AboutRow("Qplayer (Unlicense)", "https://github.com/Patrolin/qplayer")
+            AboutRow("yt-dlp (Unlicense)", "https://github.com/yt-dlp/yt-dlp")
         }
     }
     val rightBlock: @Composable RowScope.() -> Unit = {
-        Icon(Icons.Outlined.Info,
-            contentDescription = "About",
-            tint = SUBTITLE_COLOR,
-            modifier = Modifier
-                .clickable {
-                    aboutDialog.value = DialogState(true)
-                }
-                .padding(8.dp, 4.dp)
+        Icons.AboutIcon(SUBTITLE_COLOR, Modifier
+            .clickable {
+                aboutDialog.value = DialogState(true)
+            }
+            .padding(8.dp, 4.dp)
         )
     }
-    val appState = remember { mutableStateOf(AppState(listOf(), null, 0)) }
-    var mediaPlayer = MediaPlayer()
-    fun stopSong() {
-        errPrint("Stopping playback")
-        globalContext.audioFadeOut.apply(VolumeShaper.Operation.PLAY)
-        Thread.sleep(GlobalContext.FADE_OUT_TIME)
-        globalContext.mediaPlayer.stop()
-        appState.value = appState.value.withPlaying(null)
-    }
+    val appState = remember(key1 = "appState") { mutableStateOf(AppState(listOf(), null, 0)) }
+    errPrint("appState: ${appState.value.songs.size}, ${appState.value.playing}, ${appState.value.nonce}")
     fun playSong(song: Song) {
         errPrint("Playing: $song")
         globalContext.mediaPlayer.reset()
@@ -139,7 +131,27 @@ fun App() {
         globalContext.mediaPlayer.start()
         appState.value = appState.value.withPlaying(song)
     }
-    mediaPlayer.setOnCompletionListener {
+    fun pauseSong() {
+        if (globalContext.mediaPlayer.isPlaying) {
+            errPrint("Pausing song")
+            globalContext.audioFadeOut.apply(VolumeShaper.Operation.PLAY)
+            Thread.sleep(GlobalContext.FADE_OUT_TIME)
+            globalContext.mediaPlayer.pause()
+        } else {
+            errPrint("Resuming song")
+            globalContext.audioFadeIn.apply(VolumeShaper.Operation.PLAY)
+            globalContext.mediaPlayer.start()
+        }
+    }
+    fun stopSong() {
+        errPrint("Stopping song")
+        globalContext.audioFadeOut.apply(VolumeShaper.Operation.PLAY)
+        Thread.sleep(GlobalContext.FADE_OUT_TIME)
+        globalContext.mediaPlayer.stop()
+        appState.value = appState.value.withPlaying(null)
+    }
+    globalContext.mediaPlayer.setOnCompletionListener {
+        errPrint("Song completed: ${appState.value.songs.size}, ${appState.value.playing}, ${appState.value.nonce}")
         val nextIndex = appState.value.playingIndex + 1
         if (nextIndex < appState.value.songs.size) {
             playSong(appState.value.songs[nextIndex])
@@ -147,23 +159,27 @@ fun App() {
             appState.value = appState.value.withPlaying(null)
         }
     }
-    // TODO: listen to permission change
     // TODO: https://developer.android.com/guide/topics/media-apps/audio-focus#audio-focus-change
     Column() {
         useTabs(0, listOf("Songs", "Playlists"), rightBlock=rightBlock) { selectedTab ->
             val haveReadPermissions = requestPermissions(*READ_PERMISSIONS) {
+                errPrint("Permission change!")
                 globalContext.prevSelectedTab = -1
                 appState.value = appState.value.incrementNonce()
             }
-            if (selectedTab != globalContext.prevSelectedTab)
+            if (selectedTab != globalContext.prevSelectedTab) {
+                // TODO: fix weird bug
+                errPrint("Tab changed, $selectedTab, ${globalContext.prevSelectedTab}")
                 appState.value = appState.value.withSongs(getSongs())
+            }
             globalContext.prevSelectedTab = selectedTab
             when (selectedTab) {
                 0 -> {
+                    // TODO: async get songs
                     if (!haveReadPermissions) {
-                        Text(getPermissionsText("read"))
+                        Text(getPermissionsText("read"), Modifier.weight(1f))
                     } else if (appState.value.songs.isEmpty()) {
-                        Text("No songs yet, try adding a Youtube playlist or adding songs to your Music folder!")
+                        Text("No songs yet, try adding a Youtube playlist or adding songs to your Music folder!", Modifier.weight(1f))
                     } else {
                         LazyColumn(Modifier.weight(1f)) {
                             items(
@@ -197,10 +213,29 @@ fun App() {
             }
         }
         Row(Modifier.padding(16.dp, 8.dp, 16.dp, 4.dp)) {
-            Text(appState.value.playing?.name.orEmpty())
-            // TODO: pause button
+            Title(appState.value.playing?.name.orEmpty(), modifier = Modifier.padding(0.dp, 0.dp, 4.dp, 0.dp).weight(1f), wrap = false)
+            if (globalContext.mediaPlayer.isPlaying)
+                Icons.PauseIcon(color = TITLE_COLOR, modifier = Modifier.clickable { pauseSong() })
+            else
+                Icons.PlayIcon(color = TITLE_COLOR, modifier = Modifier.clickable { pauseSong() })
             // TODO: shuffle toggle
         }
+    }
+}
+
+@Composable
+fun AboutRow(title: String, url: String) {
+    Row(
+        Modifier
+            .clickable { openURL(url) }
+            .width(200.dp)
+            .padding(0.dp, 2.dp)) {
+        Icons.GithubIcon(color = TITLE_COLOR,
+            Modifier
+                .padding(4.dp)
+                .align(Alignment.CenterVertically)
+        )
+        SubTitle(title, Modifier.align(Alignment.CenterVertically))
     }
 }
 
