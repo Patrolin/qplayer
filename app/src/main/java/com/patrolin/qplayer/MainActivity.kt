@@ -20,7 +20,8 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
+import androidx.compose.runtime.neverEqualPolicy
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
@@ -128,7 +129,7 @@ fun App() {
             .padding(8.dp, 4.dp)
         )
     }
-    val (nonce, setNonce) = remember { mutableStateOf(0) }
+    val (nonce, setNonce) = rememberSaveable { mutableStateOf(0, neverEqualPolicy()) }
     fun getState() = GlobalContext._appState
     fun setState(newState: AppState) {
         GlobalContext._appState = newState
@@ -185,18 +186,13 @@ fun App() {
                 errPrint("--- Tab changed, ${GlobalContext.prevSelectedTab} -> $selectedTab")
                 if (!getState().songsLoading) {
                     val songsPromise = getSongsAsync()
-                    setState(getState().withSongs(songsPromise))
-                    errPrint("getState().1: ${getState()}")
+                    //setState(getState().withSongs(songsPromise))
                     songsPromise.then {
-                        errPrint("getSongsAsync.then(): $it")
-                        setState(getState().withSongs(it))
-                        errPrint("getState().2: ${getState()}")
                         setState(getState().withSongs(it))
                     }
                 }
             }
             GlobalContext.prevSelectedTab = selectedTab
-            errPrint("useTabs.appState: ${nonce}, ${getState().songs.size}, ${getState().current}")
             when (selectedTab) {
                 0 -> {
                     // TODO: async get songs

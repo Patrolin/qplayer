@@ -13,6 +13,7 @@ class Promise<T> {
     var value: T? = null
     private var queue = ArrayDeque<PromiseCallback<T>>()
     constructor(create: PromiseScope<T>.() -> Unit) {
+        // TODO: use suspend / async {} ?
         GlobalScope.launch {
             create(PromiseScope({ newValue ->
                 state = PromiseState.LOADED
@@ -33,12 +34,12 @@ class Promise<T> {
         handleCallbacks()
     }
     private fun handleCallbacks() {
-        //val copy = Promise(this.state, this.value)
+        val copy = Promise(this.state, this.value)
         if (state != PromiseState.LOADING) {
             var f: PromiseCallback<T>
             while (queue.isNotEmpty()) {
                 f = queue.removeFirst()
-                f.invoke(this)
+                f.invoke(copy)
             }
         }
     }
