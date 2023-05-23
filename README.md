@@ -44,3 +44,6 @@ Jetpack Compose state is retarded, you must use exactly the following:
 val (nonce, setNonce) = rememberSaveable { mutableStateOf(0, neverEqualPolicy()) }
 fun incrementNonce() { setNonce(nonce + 1) }
 ```
+
+ID3:
+- https://id3.org/Developer%20Information
