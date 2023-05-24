@@ -105,47 +105,51 @@ fun parseID3v2(file: File): String {
     var artist = "---"
     Parser(file).use {
         var pos = 0
-        if (it.readMagic("ID3")) {
-            val version = it.readWordLE()
-            if (!listOf(3, 4).contains(version)) return@use
-            val id3Flags = ID3v2Flags(it.readByte())
-            val id3Size = it.readDoubleWord7BitBE()
-            pos += 10
-            //errPrint("version: $version, id3Flags: $id3Flags, id3Size: $id3Size")
-            if (id3Flags.unSynchronisation) return@use
-            val frames = hashMapOf<String, String>()
-            val userData = hashMapOf<String, String>()
-            fun readFrame() {
-                //errPrint("readFrame() at $pos / $id3Size")
-                val id = it.readString(4)
-                val frameSize = if(version == 4) it.readDoubleWord7BitBE() else it.readDoubleWordBE()
-                val flags = ID3v2FrameFlags(it.readWordLE())
-                val textEncoding = it.readByte()
-                val data = it.readString(frameSize - 1).removeSuffix("\u0000")
-                if (id == "TXXX") {
-                    val splitIndex = data.indexOf(Char(0))
-                    if (splitIndex != -1)
-                        userData[data.slice(0 until splitIndex)] = data.slice(splitIndex+1 until data.length)
-                } else {
-                    frames[id] = data
+        try {
+            if (it.readMagic("ID3")) {
+                val version = it.readWordLE()
+                if (!listOf(3, 4).contains(version)) return@use
+                val id3Flags = ID3v2Flags(it.readByte())
+                val id3Size = it.readDoubleWord7BitBE()
+                pos += 10
+                //errPrint("version: $version, id3Flags: $id3Flags, id3Size: $id3Size")
+                if (id3Flags.unSynchronisation) return@use
+                val frames = hashMapOf<String, String>()
+                val userData = hashMapOf<String, String>()
+                fun readFrame() {
+                    //errPrint("readFrame() at $pos / $id3Size")
+                    val id = it.readString(4)
+                    val frameSize =
+                        if (version == 4) it.readDoubleWord7BitBE() else it.readDoubleWordBE()
+                    val flags = ID3v2FrameFlags(it.readWordLE())
+                    val textEncoding = it.readByte()
+                    val data = it.readString(frameSize - 1).removeSuffix("\u0000")
+                    if (id == "TXXX") {
+                        val splitIndex = data.indexOf(Char(0))
+                        if (splitIndex != -1)
+                            userData[data.slice(0 until splitIndex)] =
+                                data.slice(splitIndex + 1 until data.length)
+                    } else {
+                        frames[id] = data
+                    }
+                    pos += 10 + frameSize
+                    //errPrint("id: $id, frameSize: $frameSize, flags: $flags, data: $data")
                 }
-                pos += 10 + frameSize
-                //errPrint("id: $id, frameSize: $frameSize, flags: $flags, data: $data")
+                while (pos < id3Size) {
+                    readFrame()
+                }
+                //errPrint("frames: $frames")
+                //errPrint("userData: $userData")
+                //name = frames.getOrDefault("TIT2", file.name)
+                artist = frames.getOrDefault("TPE1", artist)
+                //year = frames.getOrDefault("TDRC", "")
+                //album = frames.getOrDefault("ALB", "")
+                //albumPosition = frames.getOrDefault("TRCK", "")
+                //lengthMs = frames.getOrDefault("TLEN", "")
+                //mood = frames.getOrDefault("TMOO", "")
+                //url = userData.getOrDefault("comment", "")
             }
-            while (pos < id3Size) {
-                readFrame()
-            }
-            //errPrint("frames: $frames")
-            //errPrint("userData: $userData")
-            //name = frames.getOrDefault("TIT2", file.name)
-            artist = frames.getOrDefault("TPE1", artist)
-            //year = frames.getOrDefault("TDRC", "")
-            //album = frames.getOrDefault("ALB", "")
-            //albumPosition = frames.getOrDefault("TRCK", "")
-            //lengthMs = frames.getOrDefault("TLEN", "")
-            //mood = frames.getOrDefault("TMOO", "")
-            //url = userData.getOrDefault("comment", "")
-        }
+        } catch (_: Exception) {}
     }
     return artist
 }
