@@ -46,4 +46,5 @@ fun incrementNonce() { setNonce(nonce + 1) }
 ```
 
 ID3:
+- https://web.archive.org/web/20120310015458/http://www.fortunecity.com/underworld/sonic/3/id3tag.html
 - https://id3.org/Developer%20Information
