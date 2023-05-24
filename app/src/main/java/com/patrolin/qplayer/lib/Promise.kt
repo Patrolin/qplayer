@@ -1,4 +1,4 @@
-package com.patrolin.qplayer.components
+package com.patrolin.qplayer.lib
 
 import kotlinx.coroutines.DelicateCoroutinesApi
 import kotlinx.coroutines.GlobalScope

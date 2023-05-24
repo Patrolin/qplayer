@@ -27,25 +27,25 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.patrolin.qplayer.components.DialogState
 import com.patrolin.qplayer.components.Icons
-import com.patrolin.qplayer.components.Promise
-import com.patrolin.qplayer.components.PromiseState
-import com.patrolin.qplayer.components.READ_PERMISSIONS
+import com.patrolin.qplayer.lib.Promise
+import com.patrolin.qplayer.lib.PromiseState
+import com.patrolin.qplayer.lib.READ_PERMISSIONS
 import com.patrolin.qplayer.components.SUBTITLE_COLOR
-import com.patrolin.qplayer.components.Song
+import com.patrolin.qplayer.lib.Song
 import com.patrolin.qplayer.components.SubTitle
 import com.patrolin.qplayer.components.TITLE_COLOR
 import com.patrolin.qplayer.components.Text
 import com.patrolin.qplayer.components.TextColor
 import com.patrolin.qplayer.components.Title
-import com.patrolin.qplayer.components.errPrint
-import com.patrolin.qplayer.components.getPermissionsText
-import com.patrolin.qplayer.components.getSongsAsync
-import com.patrolin.qplayer.components.onPermissionChange
-import com.patrolin.qplayer.components.openURL
-import com.patrolin.qplayer.components.requestPermissions
-import com.patrolin.qplayer.components.showToast
+import com.patrolin.qplayer.lib.getPermissionsText
+import com.patrolin.qplayer.lib.getSongsAsync
+import com.patrolin.qplayer.lib.onPermissionChange
+import com.patrolin.qplayer.lib.openURL
+import com.patrolin.qplayer.lib.requestPermissions
+import com.patrolin.qplayer.lib.showToast
 import com.patrolin.qplayer.components.useDialog
 import com.patrolin.qplayer.components.useTabs
+import com.patrolin.qplayer.lib.errPrint
 import com.patrolin.qplayer.ui.theme.QPlayerTheme
 
 lateinit var appContext: MainActivity

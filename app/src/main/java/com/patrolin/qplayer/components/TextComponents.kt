@@ -1,6 +1,5 @@
 package com.patrolin.qplayer.components
 
-import android.util.Log
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material3.MaterialTheme
@@ -80,8 +79,4 @@ fun Monospace(text: String, modifier: Modifier = Modifier) {
         color = TITLE_COLOR,
         modifier = modifier,
     )
-}
-
-fun errPrint(message: String) {
-    Log.d("AYAYA", message)
 }
