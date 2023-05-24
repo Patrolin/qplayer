@@ -125,7 +125,7 @@ fun parseID3v2(file: File): String {
                 if (id == "TXXX") {
                     val splitIndex = data.indexOf(Char(0))
                     if (splitIndex != -1)
-                        userData[data.slice(0 until splitIndex)] = data.slice(splitIndex until data.length)
+                        userData[data.slice(0 until splitIndex)] = data.slice(splitIndex+1 until data.length)
                 } else {
                     frames[id] = data
                 }
