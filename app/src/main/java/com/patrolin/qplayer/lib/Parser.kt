@@ -52,7 +52,7 @@ class Parser(file: File): Closeable {
     fun readDoubleWordBE(): Int {
         return readOrThrow().shl(24) + readOrThrow().shl(16) + readOrThrow().shl(8) + readOrThrow()
     }
-    fun read7BitBE(): Int {
+    fun readDoubleWord7BitBE(): Int {
         return readOrThrow().and(0x7f).shl(21) + readOrThrow().and(0x7f).shl(14) + readOrThrow().and(0x7f).shl(7) + readOrThrow().and(0x7f)
     }
     fun skip(bytes: Int) {
@@ -107,8 +107,9 @@ fun parseID3v2(file: File): String {
         var pos = 0
         if (it.readMagic("ID3")) {
             val version = it.readWordLE()
+            if (!listOf(3, 4).contains(version)) return@use
             val id3Flags = ID3v2Flags(it.readByte())
-            val id3Size = it.read7BitBE()
+            val id3Size = it.readDoubleWord7BitBE()
             pos += 10
             //errPrint("version: $version, id3Flags: $id3Flags, id3Size: $id3Size")
             if (id3Flags.unSynchronisation) return@use
@@ -117,7 +118,7 @@ fun parseID3v2(file: File): String {
             fun readFrame() {
                 //errPrint("readFrame() at $pos / $id3Size")
                 val id = it.readString(4)
-                val frameSize = it.read7BitBE()
+                val frameSize = if(version == 4) it.readDoubleWord7BitBE() else it.readDoubleWordBE()
                 val flags = ID3v2FrameFlags(it.readWordLE())
                 val textEncoding = it.readByte()
                 val data = it.readString(frameSize - 1).removeSuffix("\u0000")
