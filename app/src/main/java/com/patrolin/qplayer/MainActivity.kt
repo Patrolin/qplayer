@@ -117,6 +117,7 @@ data class AppState(
 @Composable
 fun App() {
     val aboutDialog = useDialog() {
+        // TODO: give this a background
         Column(Modifier.padding(4.dp)) {
             Title("About", Modifier.padding(4.dp, 0.dp, 0.dp, 0.dp))
             AboutRow("Qplayer (Unlicense)", "https://github.com/Patrolin/qplayer")
