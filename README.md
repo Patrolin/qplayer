@@ -7,7 +7,10 @@ Qplayer
   - play in order
   - search name + artist // TODO
   - sort by name/artist/time // TODO
-  - view song's playlists // TODO
+  - show songs belonging to multiple playlists? // TODO
+  - \> More // TODO
+    - Info (Name, Artist, Playlists) // TODO
+    - Delete w/ confirm // TODO
   - controls
     - prev/next/pause // TODO
     - toggle shuffle // TODO
@@ -16,10 +19,10 @@ Qplayer
     - Download
     - \> Shuffle // TODO
     - \> Delete w/ confirm (playlist/videos) // TODO
-  - filter by multiple playlists? // TODO
+  - filter by multiple playlists // TODO
   - Settings // TODO
-    - rate limit
-    - audio ducking
+    - rate limit // TODO
+    - audio ducking // TODO
 
 ## dev
 Pairing a physical device:
