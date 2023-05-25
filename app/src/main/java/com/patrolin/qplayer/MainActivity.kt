@@ -210,7 +210,8 @@ fun App() {
                                 itemContent = {
                                     val song = getState().songs[it]
                                     val isCurrentlyPlaying = (it == getState().currentIndex)
-                                    SongRow(song.name, song.artist, isCurrentlyPlaying) {
+                                    // TODO: display song index
+                                    SongRow("#${it+1} ${song.name}", song.artist, isCurrentlyPlaying) {
                                         if (isCurrentlyPlaying) {
                                             stopSong()
                                         } else {

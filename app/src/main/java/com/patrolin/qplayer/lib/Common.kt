@@ -27,7 +27,9 @@ data class Song(val path: String, val name: String, val artist: String)
 fun getSongsAsync(): Promise<List<Song>> {
     return Promise {
         errPrint("Getting songs...")
+        var i = 0
         val songs = getMusicFolder().walk().filter { it.isFile }.map { file ->
+            errPrint("Parsing #${i++}")
             val artist = parseID3v2(file)
             Song(file.absolutePath, file.name, artist)
         }.toList()

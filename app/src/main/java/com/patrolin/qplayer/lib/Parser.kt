@@ -27,10 +27,13 @@ class Parser(file: File): Closeable {
         }
     }
     fun readString(size: Int): String {
-        return buildString {
+        if (size == 0) return ""
+        val acc = buildString {
             for (i in 0.until(size)) {
-                append(Char(readOrThrow())) }
+                append(Char(readOrThrow()))
+            }
         }
+        return acc
     }
     fun readMagic(expectedMagic: String): Boolean {
         val n = expectedMagic.length
@@ -112,7 +115,7 @@ fun parseID3v2(file: File): String {
                 val id3Flags = ID3v2Flags(it.readByte())
                 val id3Size = it.readDoubleWord7BitBE()
                 pos += 10
-                //errPrint("version: $version, id3Flags: $id3Flags, id3Size: $id3Size")
+                //errPrint("-- version: $version, id3Flags: $id3Flags, id3Size: $id3Size")
                 if (id3Flags.unSynchronisation) return@use
                 val frames = hashMapOf<String, String>()
                 val userData = hashMapOf<String, String>()
@@ -123,6 +126,13 @@ fun parseID3v2(file: File): String {
                         if (version == 4) it.readDoubleWord7BitBE() else it.readDoubleWordBE()
                     val flags = ID3v2FrameFlags(it.readWordLE())
                     val textEncoding = it.readByte()
+                    // TODO: is this a bug in the parser?
+                    if (frameSize > 4096) {
+                        errPrint("-- malformed ID3")
+                        pos += frameSize
+                        return
+                    }
+                    //errPrint("pos: $pos, id: $id, frameSize: $frameSize, flags: $flags")
                     val data = it.readString(frameSize - 1).removeSuffix("\u0000")
                     if (id == "TXXX") {
                         val splitIndex = data.indexOf(Char(0))
@@ -132,8 +142,8 @@ fun parseID3v2(file: File): String {
                     } else {
                         frames[id] = data
                     }
+                    //errPrint("data: $data")
                     pos += 10 + frameSize
-                    //errPrint("id: $id, frameSize: $frameSize, flags: $flags, data: $data")
                 }
                 while (pos < id3Size) {
                     readFrame()
