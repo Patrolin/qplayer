@@ -2,6 +2,8 @@ package com.patrolin.qplayer.lib
 
 import java.io.Closeable
 import java.io.File
+import java.nio.ByteBuffer
+import java.nio.charset.Charset
 
 abstract class Flags(private val value: Int) {
     operator fun get(index: Int) = value.ushr(index).and(1) == 1
@@ -26,14 +28,12 @@ class Parser(file: File): Closeable {
                 add(readOrThrow())
         }
     }
-    fun readString(size: Int): String {
-        if (size == 0) return ""
-        val acc = buildString {
-            for (i in 0.until(size)) {
-                append(Char(readOrThrow()))
-            }
+    fun readString(size: Int, charset: Charset = Charsets.UTF_8): String {
+        val bytes = ByteArray(size)
+        for (i in 0.until(size)) {
+            bytes[i] = readOrThrow().toByte()
         }
-        return acc
+        return charset.decode(ByteBuffer.wrap(bytes)).toString()
     }
     fun readMagic(expectedMagic: String): Boolean {
         val n = expectedMagic.length
@@ -126,14 +126,20 @@ fun parseID3v2(file: File): String {
                         if (version == 4) it.readDoubleWord7BitBE() else it.readDoubleWordBE()
                     val flags = ID3v2FrameFlags(it.readWordLE())
                     val textEncoding = it.readByte()
+                    val charset = when(textEncoding) {
+                        0 -> Charsets.ISO_8859_1
+                        1 -> Charsets.UTF_16
+                        2 -> Charsets.UTF_16BE
+                        else -> Charsets.UTF_8
+                    }
+                    errPrint("pos: $pos, id: $id, frameSize: $frameSize, flags: $flags, textEncoding: $textEncoding")
                     // TODO: is this a bug in the parser?
                     if (frameSize > 4096) {
                         errPrint("-- malformed ID3")
                         pos += frameSize
                         return
                     }
-                    //errPrint("pos: $pos, id: $id, frameSize: $frameSize, flags: $flags")
-                    val data = it.readString(frameSize - 1).removeSuffix("\u0000")
+                    val data = it.readString(frameSize - 1, charset).removeSuffix("\u0000")
                     if (id == "TXXX") {
                         val splitIndex = data.indexOf(Char(0))
                         if (splitIndex != -1)
