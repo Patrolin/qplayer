@@ -132,7 +132,7 @@ fun parseID3v2(file: File): String {
                         2 -> Charsets.UTF_16BE
                         else -> Charsets.UTF_8
                     }
-                    errPrint("pos: $pos, id: $id, frameSize: $frameSize, flags: $flags, textEncoding: $textEncoding")
+                    //errPrint("pos: $pos, id: $id, frameSize: $frameSize, flags: $flags, textEncoding: $textEncoding")
                     // TODO: is this a bug in the parser?
                     if (frameSize > 4096) {
                         errPrint("-- malformed ID3")

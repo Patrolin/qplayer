@@ -8,12 +8,15 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
 
 val PRIMARY_COLOR @Composable get() = MaterialTheme.colorScheme.primary
 val TITLE_COLOR @Composable get() = MaterialTheme.colorScheme.onSurface
 val SUBTITLE_COLOR @Composable get() = getSubtitleColor(TITLE_COLOR)
 @Composable fun getSubtitleColor(color: Color) = color.copy(0.6f)
+val DIVIDER_COLOR @Composable get() = MaterialTheme.colorScheme.onSurface.copy(0.1f)
+
 
 val TITLE_SIZE = 16.sp
 val TEXT_SIZE = 15.sp
@@ -43,6 +46,7 @@ fun Title(text: String, modifier: Modifier = Modifier, color: TextColor = TextCo
         color = color.getColor(TITLE_COLOR),
         softWrap = wrap,
         modifier = if (wrap) modifier else modifier.horizontalScroll(scrollState),
+        lineHeight = 1.25.em,
     )
 }
 @Composable
@@ -56,6 +60,7 @@ fun SubTitle(text: String, modifier: Modifier = Modifier, color: TextColor = Tex
         color = getSubtitleColor(color.getColor(TITLE_COLOR)),
         softWrap = wrap,
         modifier = if (wrap) modifier else modifier.horizontalScroll(scrollState),
+        lineHeight = 1.25.em,
     )
 }
 @Composable

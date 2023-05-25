@@ -12,8 +12,9 @@ Qplayer
     - Info (Name, Artist, Playlists) // TODO
     - Delete w/ confirm // TODO
   - controls
-    - prev/next/pause // TODO
+    - prev/next/playPause // TODO
     - toggle shuffle // TODO
+    - toggle loop // TODO
 - Playlists
   - Add (yt) // TODO
     - Download

@@ -16,15 +16,18 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.material3.Divider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.neverEqualPolicy
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import com.patrolin.qplayer.components.DIVIDER_COLOR
 import com.patrolin.qplayer.components.DialogState
 import com.patrolin.qplayer.components.Icons
 import com.patrolin.qplayer.lib.Promise
@@ -76,38 +79,37 @@ class MainActivity : ComponentActivity() {
 
 object GlobalContext {
     // app state (rerender on change)
-    var _appState = AppState()
+    var _appState = AppState(true, listOf(), null, PlayingState.STOPPED)
     // global context (don't rerender on change)
     val mediaPlayer: MediaPlayer = MediaPlayer()
     var onCompletionListener: (() -> Unit)? = null
-    var prevSelectedTab: Int = -1
     init {
         mediaPlayer.setOnCompletionListener {
             onCompletionListener?.invoke()
         }
     }
-    private fun getAudioShaper(duration: Long, shape: FloatArray): VolumeShaper {
+    private fun getAudioShaper(shape: FloatArray): VolumeShaper {
         return mediaPlayer.createVolumeShaper(
             VolumeShaper.Configuration.Builder()
-                .setDuration(duration)
+                .setDuration(1L)
                 .setCurve(floatArrayOf(0f, 1f), shape)
                 .setInterpolatorType(VolumeShaper.Configuration.INTERPOLATOR_TYPE_CUBIC)
                 .build()
         )
     }
-    val audioFadeIn: VolumeShaper get() = getAudioShaper(FADE_IN_TIME, floatArrayOf(0f, 1f))
-    val audioFadeOut: VolumeShaper get() = getAudioShaper(FADE_OUT_TIME, floatArrayOf(1f, 0f))
-    const val FADE_IN_TIME = 1L
-    const val FADE_OUT_TIME = 1L
+    val audioFadeIn: VolumeShaper get() = getAudioShaper(floatArrayOf(0f, 1f))
+    // TODO: audio fade out?
 }
+enum class PlayingState { STOPPED, PLAYING, PAUSED }
 data class AppState(
-    val songsLoading: Boolean = false,
-    val songs: List<Song> = listOf(),
-    val current: Song? = null
+    val songsLoading: Boolean,
+    val songs: List<Song>,
+    val current: Song?,
+    val playing: PlayingState
 ) {
-    fun withSongs(newSongs: Promise<List<Song>>): AppState = AppState(newSongs.state == PromiseState.LOADING, newSongs.value ?: listOf(), current)
-    fun withCurrent(newCurrent: Song?): AppState {
-        return AppState(songsLoading, songs, newCurrent)
+    fun withSongs(newSongs: Promise<List<Song>>): AppState = AppState(newSongs.state == PromiseState.LOADING, newSongs.value ?: listOf(), current, playing)
+    fun withCurrent(newCurrent: Song?, newPlaying: PlayingState? = null): AppState {
+        return AppState(songsLoading, songs, newCurrent, newPlaying ?: playing)
     }
     val currentIndex: Int get() = songs.indexOfFirst { it == current }
 }
@@ -135,67 +137,66 @@ fun App() {
         GlobalContext._appState = newState
         setNonce(nonce + 1)
     }
+    val haveReadPermissions = requestPermissions(*READ_PERMISSIONS) {
+        errPrint("Permission change!")
+        setState(getState().copy())
+    }
+    LaunchedEffect(haveReadPermissions) {
+        if (haveReadPermissions) {
+            getSongsAsync().then {
+                setState(getState().withSongs(it))
+            }
+        }
+    }
 
-    fun playSong(song: Song) {
+    fun startSong(song: Song) {
         errPrint("Playing: $song")
         GlobalContext.mediaPlayer.reset()
         GlobalContext.mediaPlayer.setDataSource(song.path)
         GlobalContext.audioFadeIn.apply(VolumeShaper.Operation.PLAY)
         GlobalContext.mediaPlayer.prepare()
         GlobalContext.mediaPlayer.start()
-        setState(getState().withCurrent(song))
+        setState(getState().withCurrent(song, PlayingState.PLAYING))
     }
-    fun pauseSong() {
-        if (GlobalContext.mediaPlayer.isPlaying) {
-            errPrint("Pausing song")
-            GlobalContext.audioFadeOut.apply(VolumeShaper.Operation.PLAY)
-            Thread.sleep(GlobalContext.FADE_OUT_TIME)
-            GlobalContext.mediaPlayer.pause()
-        } else {
-            errPrint("Resuming song")
-            GlobalContext.audioFadeIn.apply(VolumeShaper.Operation.PLAY)
-            GlobalContext.mediaPlayer.start()
+    fun playPauseSong() {
+        val state = getState()
+        when (state.playing) {
+            PlayingState.PLAYING -> {
+                errPrint("Pausing song")
+                GlobalContext.mediaPlayer.pause()
+                setState(state.withCurrent(state.current, PlayingState.PAUSED))
+            }
+            PlayingState.PAUSED -> {
+                GlobalContext.audioFadeIn.apply(VolumeShaper.Operation.PLAY)
+                GlobalContext.mediaPlayer.start()
+                setState(state.withCurrent(state.current, PlayingState.PLAYING))
+            }
+            PlayingState.STOPPED -> {
+                val song = state.current ?: state.songs.getOrNull(0)
+                if (song != null) startSong(song)
+            }
         }
-        setState(getState().copy())
     }
     fun stopSong() {
         errPrint("Stopping song")
-        GlobalContext.audioFadeOut.apply(VolumeShaper.Operation.PLAY)
-        Thread.sleep(GlobalContext.FADE_OUT_TIME)
         GlobalContext.mediaPlayer.stop()
-        setState(getState().withCurrent(null))
+        val state = getState()
+        setState(state.withCurrent(state.current, PlayingState.STOPPED))
     }
     GlobalContext.onCompletionListener = {
         errPrint("Song completed: ${getState().songs.size}, ${getState().current}")
         val nextIndex = getState().currentIndex + 1
         if (nextIndex < getState().songs.size) {
-            playSong(getState().songs[nextIndex])
+            startSong(getState().songs[nextIndex])
         } else {
-            setState(getState().withCurrent(null))
+            setState(getState().withCurrent(null, PlayingState.STOPPED))
         }
     }
     // TODO: https://developer.android.com/guide/topics/media-apps/audio-focus#audio-focus-change
     Column() {
         useTabs(0, listOf("Songs", "Playlists"), rightBlock=rightBlock) { selectedTab ->
-            val haveReadPermissions = requestPermissions(*READ_PERMISSIONS) {
-                errPrint("Permission change!")
-                GlobalContext.prevSelectedTab = -1
-                setState(getState().copy())
-            }
-            if (selectedTab != GlobalContext.prevSelectedTab) {
-                errPrint("--- Tab changed, ${GlobalContext.prevSelectedTab} -> $selectedTab")
-                if (!getState().songsLoading) {
-                    val songsPromise = getSongsAsync()
-                    //setState(getState().withSongs(songsPromise))
-                    songsPromise.then {
-                        setState(getState().withSongs(it))
-                    }
-                }
-            }
-            GlobalContext.prevSelectedTab = selectedTab
             when (selectedTab) {
                 0 -> {
-                    // TODO: async get songs
                     if (!haveReadPermissions) {
                         Text(getPermissionsText("read"), Modifier.weight(1f))
                     } else if (getState().songsLoading) {
@@ -208,15 +209,16 @@ fun App() {
                                 count = getState().songs.size,
                                 key = { it },
                                 itemContent = {
-                                    val song = getState().songs[it]
-                                    val isCurrentlyPlaying = (it == getState().currentIndex)
+                                    val state = getState()
+                                    val song = state.songs[it]
+                                    val isPlaying = (it == state.currentIndex) && (state.playing == PlayingState.PLAYING)
                                     // TODO: display song index
-                                    SongRow("#${it+1} ${song.name}", song.artist, isCurrentlyPlaying) {
-                                        if (isCurrentlyPlaying) {
+                                    SongRow(it, song.name, song.artist, isPlaying) {
+                                        if (isPlaying) {
                                             stopSong()
                                         } else {
                                             try {
-                                                playSong(song)
+                                                startSong(song)
                                             } catch (error: Exception) {
                                                 errPrint("$error")
                                                 showToast("$error", Toast.LENGTH_LONG)
@@ -235,16 +237,20 @@ fun App() {
                 }
             }
         }
-        Row(Modifier.padding(16.dp, 8.dp, 16.dp, 4.dp)) {
-            Title(getState().current?.name.orEmpty(), modifier = Modifier
-                .padding(0.dp, 0.dp, 4.dp, 0.dp)
-                .weight(1f), wrap = false)
-            // TODO: track isPaused
-            if (GlobalContext.mediaPlayer.isPlaying)
-                Icons.PauseIcon(color = TITLE_COLOR, modifier = Modifier.clickable { pauseSong() })
+        Divider(color = DIVIDER_COLOR)
+        Row(Modifier.padding(16.dp, 8.dp, 16.dp, 6.dp)) {
+            Column(
+                Modifier
+                    .padding(0.dp, 0.dp, 4.dp, 0.dp)
+                    .weight(1f)) {
+                Title(getState().current?.name.orEmpty())
+                SubTitle(getState().current?.artist.orEmpty())
+            }
+            if (getState().playing == PlayingState.PLAYING)
+                Icons.PauseIcon(color = TITLE_COLOR, modifier = Modifier.clickable { playPauseSong() }.align(Alignment.CenterVertically))
             else
-                Icons.PlayIcon(color = TITLE_COLOR, modifier = Modifier.clickable { pauseSong() })
-            Icons.ShuffleIcon(color = TITLE_COLOR, modifier = Modifier) // TODO: shuffle toggle
+                Icons.PlayIcon(color = TITLE_COLOR, modifier = Modifier.clickable { playPauseSong() }.align(Alignment.CenterVertically))
+            Icons.ShuffleIcon(color = TITLE_COLOR, modifier = Modifier.align(Alignment.CenterVertically)) // TODO: shuffle toggle
         }
     }
 }
@@ -266,18 +272,23 @@ fun AboutRow(title: String, url: String) {
 }
 
 @Composable
-fun SongRow(name: String, author: String, isCurrentlyPlaying: Boolean, onClick: () -> Unit = {}) {
+fun SongRow(i: Int, name: String, author: String, highlight: Boolean, onClick: () -> Unit = {}) {
+    val rowColor = if(highlight) TextColor.PRIMARY else TextColor.DEFAULT
     Row(
         Modifier
             .clickable(onClick = onClick)
             .height(54.dp)) {
+        SubTitle("${i+1}",
+            Modifier
+                .padding(4.dp, 0.dp, 0.dp, 0.dp)
+                .align(Alignment.CenterVertically), color = rowColor)
         Column(
             Modifier
                 .fillMaxWidth()
                 .padding(8.dp, 4.dp, 32.dp, 4.dp)) {
             // TODO: fadeout on right side
-            Title(name.trim(), color = if(isCurrentlyPlaying) TextColor.PRIMARY else TextColor.DEFAULT, wrap = false)
-            SubTitle(author, color = if(isCurrentlyPlaying) TextColor.PRIMARY else TextColor.DEFAULT, wrap = false)
+            Title(name.trim(), color = rowColor, wrap = false)
+            SubTitle(author, color = rowColor, wrap = false)
         }
     }
 }
