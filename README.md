@@ -4,22 +4,27 @@ A simple Android music player
 ## features
 Qplayer
 - Songs
-  - play in order
+  - show song count // TODO
+  - \> show name/artist/length // TODO: length
+  - controls
+    - show playing song name/artist/length // TODO: length
+    - play/pause
+    - prev/next // TODO
+    - toggle shuffle (ordered/shuffled) // TODO
+    - toggle loop (single/loop single/loop all) // TODO
+  - \> More // TODO
+    - Info (name/artist/length/playlists) // TODO
+    - Delete w/ confirm // TODO
+  - start random song // TODO
   - search name + artist // TODO
   - sort by name/artist/time // TODO
   - show songs belonging to multiple playlists? // TODO
-  - \> More // TODO
-    - Info (Name, Artist, Playlists) // TODO
-    - Delete w/ confirm // TODO
-  - controls
-    - prev/next/playPause // TODO
-    - toggle shuffle // TODO
-    - toggle loop // TODO
 - Playlists
   - Add (yt) // TODO
     - Download
-    - \> Shuffle // TODO
-    - \> Delete w/ confirm (playlist/videos) // TODO
+  - \> show name/song count // TODO
+  - \> Shuffle // TODO
+  - \> Delete w/ confirm (playlist/videos) // TODO
   - filter by multiple playlists // TODO
   - Settings // TODO
     - rate limit // TODO
