@@ -99,7 +99,6 @@ object GlobalContext {
         )
     }
     val audioFadeIn: VolumeShaper get() = getAudioShaper(floatArrayOf(0f, 1f))
-    // TODO: audio fade out?
 }
 enum class PlayingState { STOPPED, PLAYING, PAUSED }
 enum class LoopState { NONE, SINGLE, ALL }
