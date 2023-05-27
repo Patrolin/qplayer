@@ -48,6 +48,7 @@ import com.patrolin.qplayer.lib.requestPermissions
 import com.patrolin.qplayer.lib.showToast
 import com.patrolin.qplayer.components.useDialog
 import com.patrolin.qplayer.components.useTabs
+import com.patrolin.qplayer.lib.RingBuffer
 import com.patrolin.qplayer.lib.errPrint
 import com.patrolin.qplayer.ui.theme.QPlayerTheme
 
@@ -79,7 +80,7 @@ class MainActivity : ComponentActivity() {
 
 object GlobalContext {
     // app state (rerender on change)
-    var _appState = AppState(true, listOf(), null, PlayingState.STOPPED)
+    var _appState = AppState(true, listOf(), listOf(), listOf(), null, PlayingState.STOPPED, RingBuffer(8), false, LoopState.NONE)
     // global context (don't rerender on change)
     val mediaPlayer: MediaPlayer = MediaPlayer()
     var onCompletionListener: (() -> Unit)? = null
@@ -101,17 +102,67 @@ object GlobalContext {
     // TODO: audio fade out?
 }
 enum class PlayingState { STOPPED, PLAYING, PAUSED }
+enum class LoopState { NONE, SINGLE, ALL }
 data class AppState(
     val songsLoading: Boolean,
     val songs: List<Song>,
-    val current: Song?,
-    val playing: PlayingState
+    // playlist
+    val playlist: List<Song>,
+    // controls
+    val playOrder: List<Song>,
+    val playing: Song?,
+    val playingState: PlayingState,
+    val shuffleHistory: RingBuffer<Song>,
+    val shuffle: Boolean,
+    val loopState: LoopState,
 ) {
-    fun withSongs(newSongs: Promise<List<Song>>): AppState = AppState(newSongs.state == PromiseState.LOADING, newSongs.value ?: listOf(), current, playing)
-    fun withCurrent(newCurrent: Song?, newPlaying: PlayingState? = null): AppState {
-        return AppState(songsLoading, songs, newCurrent, newPlaying ?: playing)
+    fun withSongs(newSongs: Promise<List<Song>>): AppState
+        = AppState(newSongs.state == PromiseState.LOADING, newSongs.value ?: listOf(), playlist, playOrder, playing, playingState, shuffleHistory, shuffle, loopState)
+    // controls
+    fun start(newPlaylist: List<Song>, newPlaying: Song, newShuffle: Boolean? = null)
+        = AppState(songsLoading, songs, newPlaylist, listOf(), newPlaying, PlayingState.PLAYING, shuffleHistory, newShuffle ?: shuffle, loopState).reshuffle()
+    private fun reshuffle(): AppState {
+        val newPlayOrder = if (shuffle) {
+            val newPlayOrder = playlist.shuffled().toMutableList()
+            val playingIndex = newPlayOrder.indexOf(playing)
+            if (playingIndex != -1) {
+                val tmp = newPlayOrder[0]
+                newPlayOrder[0] = newPlayOrder[playingIndex]
+                newPlayOrder[playingIndex] = tmp
+            }
+            newPlayOrder
+        } else {
+            playlist
+        }
+        // TODO: don't repeat last log n songs (cross playlist?)
+        return AppState(songsLoading, songs, playlist, newPlayOrder, playing, playingState, shuffleHistory, shuffle, loopState)
     }
-    val currentIndex: Int get() = songs.indexOfFirst { it == current }
+    fun next(): AppState {
+        val playingIndex = playOrder.indexOf(playing)
+        var newPlayOrder = playOrder
+        val nextIndex = when(loopState) {
+            LoopState.NONE -> playingIndex + 1
+            LoopState.SINGLE -> playingIndex
+            LoopState.ALL -> {
+                val nextIndex = playingIndex + 1
+                if (nextIndex < playOrder.size) {
+                    nextIndex
+                } else {
+                    newPlayOrder = this.reshuffle().playOrder
+                    0
+                }
+            }
+        }
+        val newPlaying = if (nextIndex < newPlayOrder.size) newPlayOrder[nextIndex] else null
+        val newPlayingState = if (newPlaying != null) playingState else PlayingState.STOPPED
+        return AppState(songsLoading, songs, playlist, playOrder, playing, newPlayingState, shuffleHistory, shuffle, loopState)
+    }
+    fun togglePlayingState(newPlayingState: PlayingState)
+        = AppState(songsLoading, songs, playlist, playOrder, playing, newPlayingState, shuffleHistory, shuffle, loopState)
+    fun toggleShuffle(newShuffle: Boolean): AppState
+        = AppState(songsLoading, songs, playlist, listOf(), playing, PlayingState.PLAYING, shuffleHistory, newShuffle, loopState).reshuffle()
+    fun toggleLoopState(newLoopState: LoopState)
+        = AppState(songsLoading, songs, playlist, playOrder, playing, playingState, shuffleHistory, shuffle, newLoopState)
 }
 
 @Composable
@@ -150,30 +201,33 @@ fun App() {
         }
     }
 
-    fun startSong(song: Song) {
+    fun _startSong(song: Song) {
         errPrint("Playing: $song")
         GlobalContext.mediaPlayer.reset()
         GlobalContext.mediaPlayer.setDataSource(song.path)
         GlobalContext.audioFadeIn.apply(VolumeShaper.Operation.PLAY)
         GlobalContext.mediaPlayer.prepare()
         GlobalContext.mediaPlayer.start()
-        setState(getState().withCurrent(song, PlayingState.PLAYING))
+    }
+    fun startSong(song: Song) {
+        _startSong(song)
+        val state = getState()
+        setState(state.start(state.songs, song))
     }
     fun playPauseSong() {
         val state = getState()
-        when (state.playing) {
+        when (state.playingState) {
             PlayingState.PLAYING -> {
-                errPrint("Pausing song")
                 GlobalContext.mediaPlayer.pause()
-                setState(state.withCurrent(state.current, PlayingState.PAUSED))
+                setState(state.togglePlayingState(PlayingState.PAUSED))
             }
             PlayingState.PAUSED -> {
                 GlobalContext.audioFadeIn.apply(VolumeShaper.Operation.PLAY)
                 GlobalContext.mediaPlayer.start()
-                setState(state.withCurrent(state.current, PlayingState.PLAYING))
+                setState(state.togglePlayingState(PlayingState.PLAYING))
             }
             PlayingState.STOPPED -> {
-                val song = state.current ?: state.songs.getOrNull(0)
+                val song = state.playing ?: state.songs.getOrNull(0)
                 if (song != null) startSong(song)
             }
         }
@@ -181,17 +235,16 @@ fun App() {
     fun stopSong() {
         errPrint("Stopping song")
         GlobalContext.mediaPlayer.stop()
-        val state = getState()
-        setState(state.withCurrent(state.current, PlayingState.STOPPED))
+        setState(getState().togglePlayingState(PlayingState.STOPPED))
     }
     GlobalContext.onCompletionListener = {
-        errPrint("Song completed: ${getState().songs.size}, ${getState().current}")
-        val nextIndex = getState().currentIndex + 1
-        if (nextIndex < getState().songs.size) {
-            startSong(getState().songs[nextIndex])
-        } else {
-            setState(getState().withCurrent(null, PlayingState.STOPPED))
+        val state = getState()
+        errPrint("Song completed: ${state.songs.size}, ${state.playing}")
+        val newState = state.next()
+        if (newState.playingState == PlayingState.PLAYING) {
+            _startSong(newState.playing!!)
         }
+        setState(newState)
     }
     // TODO: https://developer.android.com/guide/topics/media-apps/audio-focus#audio-focus-change
     Column() {
@@ -205,6 +258,7 @@ fun App() {
                     } else if (getState().songs.isEmpty()) {
                         Text("No songs yet, try adding a Youtube playlist or adding songs to your Music folder!", Modifier.weight(1f))
                     } else {
+                        val playingIndex = getState().playOrder.indexOf(getState().playing)
                         LazyColumn(Modifier.weight(1f)) {
                             items(
                                 count = getState().songs.size,
@@ -212,8 +266,7 @@ fun App() {
                                 itemContent = {
                                     val state = getState()
                                     val song = state.songs[it]
-                                    val isPlaying = (it == state.currentIndex) && (state.playing == PlayingState.PLAYING)
-                                    // TODO: display song index
+                                    val isPlaying = (it == playingIndex) && (state.playingState == PlayingState.PLAYING)
                                     SongRow(it, song.name, song.artist, isPlaying) {
                                         if (isPlaying) {
                                             stopSong()
@@ -244,10 +297,10 @@ fun App() {
                 Modifier
                     .padding(0.dp, 0.dp, 4.dp, 0.dp)
                     .weight(1f)) {
-                Title(getState().current?.name.orEmpty())
-                SubTitle(getState().current?.artist.orEmpty())
+                Title(getState().playing?.name.orEmpty())
+                SubTitle(getState().playing?.artist.orEmpty())
             }
-            if (getState().playing == PlayingState.PLAYING)
+            if (getState().playingState == PlayingState.PLAYING)
                 Icons.PauseIcon(color = TITLE_COLOR, modifier = Modifier.clickable { playPauseSong() }.align(Alignment.CenterVertically))
             else
                 Icons.PlayIcon(color = TITLE_COLOR, modifier = Modifier.clickable { playPauseSong() }.align(Alignment.CenterVertically))
