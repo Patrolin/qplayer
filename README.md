@@ -11,7 +11,7 @@ Qplayer
     - play/pause
     - prev/next // TODO
     - toggle shuffle (ordered/shuffled) // TODO
-    - toggle loop (single/loop single/loop all) // TODO
+    - toggle loop (single/loop single/loop all)
   - \> More // TODO
     - Info (name/artist/length/playlists) // TODO
     - Delete w/ confirm // TODO

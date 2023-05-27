@@ -31,4 +31,13 @@ object Icons {
     @Composable fun ShuffleIcon(color: Color, modifier: Modifier = Modifier) {
         return BaseIcon(ImageVector.vectorResource(id = R.drawable.baseline_shuffle_24), "Shuffle", color, modifier)
     }
+    @Composable fun LoopNoneIcon(color: Color, modifier: Modifier = Modifier) {
+        return BaseIcon(ImageVector.vectorResource(id = R.drawable.baseline_repeat_none_24), "Loop none", color, modifier)
+    }
+    @Composable fun LoopOneIcon(color: Color, modifier: Modifier = Modifier) {
+        return BaseIcon(ImageVector.vectorResource(id = R.drawable.baseline_repeat_one_24), "Loop one", color, modifier)
+    }
+    @Composable fun LoopAllIcon(color: Color, modifier: Modifier = Modifier) {
+        return BaseIcon(ImageVector.vectorResource(id = R.drawable.baseline_repeat_24), "Loop all", color, modifier)
+    }
 }
