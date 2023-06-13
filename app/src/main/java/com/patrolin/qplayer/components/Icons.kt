@@ -31,13 +31,19 @@ object Icons {
     @Composable fun ShuffleIcon(color: Color, modifier: Modifier = Modifier) {
         return BaseIcon(ImageVector.vectorResource(id = R.drawable.baseline_shuffle_24), "Shuffle", color, modifier)
     }
-    @Composable fun LoopNoneIcon(color: Color, modifier: Modifier = Modifier) {
-        return BaseIcon(ImageVector.vectorResource(id = R.drawable.baseline_repeat_none_24), "Loop none", color, modifier)
-    }
-    @Composable fun LoopOneIcon(color: Color, modifier: Modifier = Modifier) {
-        return BaseIcon(ImageVector.vectorResource(id = R.drawable.baseline_repeat_one_24), "Loop one", color, modifier)
+    @Composable fun ShuffleOffIcon(color: Color, modifier: Modifier = Modifier) {
+        return BaseIcon(ImageVector.vectorResource(id = R.drawable.baseline_shuffle_off_24), "Shuffle off", color, modifier)
     }
     @Composable fun LoopAllIcon(color: Color, modifier: Modifier = Modifier) {
-        return BaseIcon(ImageVector.vectorResource(id = R.drawable.baseline_repeat_24), "Loop all", color, modifier)
+        return BaseIcon(ImageVector.vectorResource(id = R.drawable.baseline_loop_all_24), "Loop all", color, modifier)
+    }
+    @Composable fun LoopOneIcon(color: Color, modifier: Modifier = Modifier) {
+        return BaseIcon(ImageVector.vectorResource(id = R.drawable.baseline_loop_one_24), "Loop one", color, modifier)
+    }
+    @Composable fun PlayAllIcon(color: Color, modifier: Modifier = Modifier) {
+        return BaseIcon(ImageVector.vectorResource(id = R.drawable.baseline_play_all_24), "Play all", color, modifier)
+    }
+    @Composable fun PlayOneIcon(color: Color, modifier: Modifier = Modifier) {
+        return BaseIcon(ImageVector.vectorResource(id = R.drawable.baseline_play_one_24), "Play one", color, modifier)
     }
 }
