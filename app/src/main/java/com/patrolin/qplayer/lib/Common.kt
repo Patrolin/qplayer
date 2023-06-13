@@ -18,6 +18,20 @@ fun getAppName(): String {
 fun errPrint(message: String) {
     Log.d("AYAYA", message)
 }
+class Debounce(private val delay: Int) {
+    private var lastCall = System.currentTimeMillis()
+    fun call(callback: (() -> Unit)?) {
+        val now = System.currentTimeMillis()
+        if ((callback != null) && (now >= lastCall + delay)) {
+            lastCall = now
+            callback()
+        }
+    }
+}
+fun debounce(delay: Int, callback: () -> Unit): (() -> Unit) {
+    val debounce = Debounce(delay)
+    return { debounce.call(callback) }
+}
 
 // data
 fun getMusicFolder(): File = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_MUSIC)

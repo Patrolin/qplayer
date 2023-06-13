@@ -38,11 +38,13 @@ import com.patrolin.qplayer.components.TextColor
 import com.patrolin.qplayer.components.Title
 import com.patrolin.qplayer.components.useDialog
 import com.patrolin.qplayer.components.useTabs
+import com.patrolin.qplayer.lib.Debounce
 import com.patrolin.qplayer.lib.Promise
 import com.patrolin.qplayer.lib.PromiseState
 import com.patrolin.qplayer.lib.READ_PERMISSIONS
 import com.patrolin.qplayer.lib.RingBuffer
 import com.patrolin.qplayer.lib.Song
+import com.patrolin.qplayer.lib.debounce
 import com.patrolin.qplayer.lib.errPrint
 import com.patrolin.qplayer.lib.getPermissionsText
 import com.patrolin.qplayer.lib.getSongsAsync
@@ -86,9 +88,10 @@ object GlobalContext {
     val mediaPlayer: MediaPlayer = MediaPlayer()
     var isPositionThreadRunning = false
     var onCompletionListener: (() -> Unit)? = null
+    private val oclDebounce = debounce(100) { onCompletionListener?.invoke() } // MediaPlayer is garbage and calls this twice
     init {
         mediaPlayer.setOnCompletionListener {
-            onCompletionListener?.invoke()
+            oclDebounce()
         }
     }
     private fun getAudioShaper(shape: FloatArray): VolumeShaper {
@@ -249,7 +252,6 @@ fun App() {
         val newState = state.next()
         setState(newState)
         if (newState.playingState == PlayingState.PLAYING) {
-            errPrint("onCompletionListener.playNext") // TODO: why is this called twice?
             _startSong(newState.playing!!)
         }
     }
