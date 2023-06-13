@@ -38,7 +38,6 @@ import com.patrolin.qplayer.components.TextColor
 import com.patrolin.qplayer.components.Title
 import com.patrolin.qplayer.components.useDialog
 import com.patrolin.qplayer.components.useTabs
-import com.patrolin.qplayer.lib.Debounce
 import com.patrolin.qplayer.lib.Promise
 import com.patrolin.qplayer.lib.PromiseState
 import com.patrolin.qplayer.lib.READ_PERMISSIONS
@@ -158,7 +157,7 @@ data class AppState(
                     nextIndex
                 } else {
                     newPlayOrder = this.reshuffle().playOrder
-                    0
+                    if (playOrder.size >= 2) 1 else 0 // TODO: fix .reshuffle()
                 }
             }
             LoopState.LOOP_ONE -> playingIndex
@@ -247,14 +246,6 @@ fun App() {
         val state = getState()
         setState(state.start(state.songs, song))
     }
-    GlobalContext.onCompletionListener = {
-        val state = getState()
-        val newState = state.next()
-        setState(newState)
-        if (newState.playingState == PlayingState.PLAYING) {
-            _startSong(newState.playing!!)
-        }
-    }
     // top controls
     fun playPauseSong() {
         val state = getState()
@@ -278,9 +269,12 @@ fun App() {
     fun playNextSong() {
         GlobalContext.mediaPlayer.stop()
         val newState = getState().next()
-        setState(newState)
         if (newState.playing != null)
             _startSong(newState.playing)
+        setState(newState)
+    }
+    GlobalContext.onCompletionListener = {
+        playNextSong()
     }
     // bottom controls
     fun stopSong() {
