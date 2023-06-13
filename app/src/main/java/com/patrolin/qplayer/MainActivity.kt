@@ -311,14 +311,24 @@ fun App() {
                 SubTitle(getState().playing?.artist.orEmpty())
             }
             if (getState().playingState == PlayingState.PLAYING)
-                Icons.PauseIcon(color = TITLE_COLOR, modifier = Modifier.clickable { playPauseSong() }.align(Alignment.CenterVertically))
+                Icons.PauseIcon(color = TITLE_COLOR, modifier = Modifier
+                    .clickable { playPauseSong() }
+                    .align(Alignment.CenterVertically))
             else
-                Icons.PlayIcon(color = TITLE_COLOR, modifier = Modifier.clickable { playPauseSong() }.align(Alignment.CenterVertically))
+                Icons.PlayIcon(color = TITLE_COLOR, modifier = Modifier
+                    .clickable { playPauseSong() }
+                    .align(Alignment.CenterVertically))
             Icons.ShuffleIcon(color = TITLE_COLOR, modifier = Modifier.align(Alignment.CenterVertically)) // TODO: shuffle toggle
             when (getState().loopState) {
-                LoopState.NONE -> Icons.LoopNoneIcon(color = TITLE_COLOR, modifier = Modifier.clickable { toggleLoopState() }.align(Alignment.CenterVertically))
-                LoopState.ONE -> Icons.LoopOneIcon(color = TITLE_COLOR, modifier = Modifier.clickable { toggleLoopState() }.align(Alignment.CenterVertically))
-                LoopState.ALL -> Icons.LoopAllIcon(color = TITLE_COLOR, modifier = Modifier.clickable { toggleLoopState() }.align(Alignment.CenterVertically))
+                LoopState.NONE -> Icons.LoopNoneIcon(color = TITLE_COLOR, modifier = Modifier
+                    .clickable { toggleLoopState() }
+                    .align(Alignment.CenterVertically))
+                LoopState.ONE -> Icons.LoopOneIcon(color = TITLE_COLOR, modifier = Modifier
+                    .clickable { toggleLoopState() }
+                    .align(Alignment.CenterVertically))
+                LoopState.ALL -> Icons.LoopAllIcon(color = TITLE_COLOR, modifier = Modifier
+                    .clickable { toggleLoopState() }
+                    .align(Alignment.CenterVertically))
             }
         }
     }
