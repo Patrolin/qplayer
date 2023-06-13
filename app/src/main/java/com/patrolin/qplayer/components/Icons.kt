@@ -21,12 +21,22 @@ object Icons {
     @Composable fun GithubIcon(color: Color, modifier: Modifier = Modifier) {
         return BaseIcon(ImageVector.vectorResource(id = R.drawable.github), "Github", color, modifier)
     }
-    // controls
+    // top controls
+    @Composable fun PrevIcon(color: Color, modifier: Modifier = Modifier) {
+        return BaseIcon(ImageVector.vectorResource(id = R.drawable.baseline_skip_previous_24), "Previous", color, modifier)
+    }
     @Composable fun PlayIcon(color: Color, modifier: Modifier = Modifier) {
         return BaseIcon(androidx.compose.material.icons.Icons.Filled.PlayArrow, "Play", color, modifier)
     }
     @Composable fun PauseIcon(color: Color, modifier: Modifier = Modifier) {
         return BaseIcon(ImageVector.vectorResource(id = R.drawable.baseline_pause_24), "Pause", color, modifier)
+    }
+    @Composable fun NextIcon(color: Color, modifier: Modifier = Modifier) {
+        return BaseIcon(ImageVector.vectorResource(id = R.drawable.baseline_skip_next_24), "Next", color, modifier)
+    }
+    // bottom controls
+    @Composable fun StopIcon(color: Color, modifier: Modifier = Modifier) {
+        return BaseIcon(ImageVector.vectorResource(id = R.drawable.baseline_stop_24), "Stop", color, modifier)
     }
     @Composable fun ShuffleIcon(color: Color, modifier: Modifier = Modifier) {
         return BaseIcon(ImageVector.vectorResource(id = R.drawable.baseline_shuffle_24), "Shuffle", color, modifier)

@@ -118,12 +118,15 @@ data class AppState(
     val loopState: LoopState,
     val currentPosition: Int,
 ) {
-    fun withSongs(newSongs: Promise<List<Song>>): AppState
-        = AppState(newSongs.state == PromiseState.LOADING, newSongs.value ?: listOf(), playlist, playOrder, playing, playingState,
-            shuffleHistory, shuffle, loopState, currentPosition).reshuffle()
+    fun withSongs(newSongsPromise: Promise<List<Song>>): AppState {
+        val newSongsLoading = newSongsPromise.state == PromiseState.LOADING
+        val newSongs = newSongsPromise.value ?: listOf()
+        return AppState(newSongsLoading, newSongs, playlist, playOrder, playing, playingState, shuffleHistory, shuffle, loopState, currentPosition)
+    }
     // controls
-    fun start(newPlaylist: List<Song>, newPlaying: Song, newShuffle: Boolean? = null)
-        = AppState(songsLoading, songs, newPlaylist, listOf(), newPlaying, PlayingState.PLAYING, shuffleHistory, newShuffle ?: shuffle, loopState, 0).reshuffle()
+    fun start(newPlaylist: List<Song>, newPlaying: Song)
+        = AppState(songsLoading, songs, newPlaylist, listOf(), newPlaying,
+            PlayingState.PLAYING, shuffleHistory, shuffle, loopState, 0).reshuffle()
     private fun reshuffle(): AppState {
         val newPlayOrder = if (shuffle) {
             val newPlayOrder = playlist.shuffled().toMutableList()
@@ -141,6 +144,7 @@ data class AppState(
         // TODO: don't repeat last log p songs
         return AppState(songsLoading, songs, playlist, newPlayOrder, playing, playingState, shuffleHistory, shuffle, loopState, currentPosition)
     }
+    // TODO: prev
     fun next(): AppState {
         val playingIndex = playOrder.indexOf(playing)
         var newPlayOrder = playOrder
@@ -162,8 +166,10 @@ data class AppState(
         val newPlayingState = if (newPlaying != null) playingState else PlayingState.STOPPED
         return AppState(songsLoading, songs, playlist, playOrder, newPlaying, newPlayingState, shuffleHistory, shuffle, loopState, currentPosition)
     }
-    fun togglePlayingState(newPlayingState: PlayingState)
-        = AppState(songsLoading, songs, playlist, playOrder, playing, newPlayingState, shuffleHistory, shuffle, loopState, currentPosition)
+    fun togglePlayingState(newPlayingState: PlayingState, clearPlaying: Boolean = false): AppState {
+        val newPlaying = if (clearPlaying) null else playing
+        return AppState(songsLoading, songs, playlist, playOrder, newPlaying, newPlayingState, shuffleHistory, shuffle, loopState, currentPosition)
+    }
     fun toggleShuffle(newShuffle: Boolean): AppState
         = AppState(songsLoading, songs, playlist, listOf(), playing, playingState, shuffleHistory, newShuffle, loopState, currentPosition).reshuffle()
     fun toggleLoopState(newLoopState: LoopState)
@@ -238,6 +244,16 @@ fun App() {
         val state = getState()
         setState(state.start(state.songs, song))
     }
+    GlobalContext.onCompletionListener = {
+        val state = getState()
+        val newState = state.next()
+        setState(newState)
+        if (newState.playingState == PlayingState.PLAYING) {
+            errPrint("onCompletionListener.playNext") // TODO: why is this called twice?
+            _startSong(newState.playing!!)
+        }
+    }
+    // top controls
     fun playPauseSong() {
         val state = getState()
         when (state.playingState) {
@@ -252,24 +268,22 @@ fun App() {
                 setState(state.togglePlayingState(PlayingState.PLAYING))
             }
             PlayingState.STOPPED -> {
-                val song = state.playing ?: state.songs.getOrNull(0)
+                val song = state.playing ?: state.songs.getOrNull(0) // TODO: state.next()
                 if (song != null) startSong(song)
             }
         }
     }
-    fun stopSong() {
-        errPrint("Stopping song")
+    fun playNextSong() {
         GlobalContext.mediaPlayer.stop()
-        setState(getState().togglePlayingState(PlayingState.STOPPED))
-    }
-    GlobalContext.onCompletionListener = {
-        val state = getState()
-        errPrint("Song completed: ${state.playing}")
-        val newState = state.next()
-        if (newState.playingState == PlayingState.PLAYING) {
-            _startSong(newState.playing!!)
-        }
+        val newState = getState().next()
         setState(newState)
+        if (newState.playing != null)
+            _startSong(newState.playing)
+    }
+    // bottom controls
+    fun stopSong() {
+        GlobalContext.mediaPlayer.stop()
+        setState(getState().togglePlayingState(PlayingState.STOPPED, true))
     }
     fun toggleShuffleState() {
         val state = getState()
@@ -332,31 +346,46 @@ fun App() {
             Column(
                 Modifier
                     .padding(0.dp, 0.dp, 4.dp, 0.dp)
-                    .weight(1f)) {
-                Title(getState().playing?.name.orEmpty())
-                SubTitle(getState().playing?.artist.orEmpty())
-                Title("${getState().currentPosition / 1000}s / ${GlobalContext.mediaPlayer.duration / 1000}s")
+                    .weight(1f)
+            ) {
+                val state = getState()
+                Title(state.playing?.name.orEmpty())
+                SubTitle(state.playing?.artist.orEmpty())
+                Title(if(state.playing != null) "${state.currentPosition / 1000}s / ${GlobalContext.mediaPlayer.duration / 1000}s" else "")
             }
-            if (getState().playingState == PlayingState.PLAYING)
-                Icons.PauseIcon(color = TITLE_COLOR, modifier = Modifier
-                    .clickable { playPauseSong() }
-                    .align(Alignment.CenterVertically))
-            else
-                Icons.PlayIcon(color = TITLE_COLOR, modifier = Modifier
-                    .clickable { playPauseSong() }
-                    .align(Alignment.CenterVertically))
-            val shuffleIconModifier = Modifier.clickable { toggleShuffleState() }.align(Alignment.CenterVertically)
-            if (getState().shuffle) {
-                Icons.ShuffleIcon(color = TITLE_COLOR, modifier = shuffleIconModifier)
-            } else {
-                Icons.ShuffleOffIcon(color = TITLE_COLOR, modifier = shuffleIconModifier)
-            }
-            val loopIconModifier = Modifier.clickable { toggleLoopState() }.align(Alignment.CenterVertically)
-            when (getState().loopState) {
-                LoopState.LOOP_ALL -> Icons.LoopAllIcon(color = TITLE_COLOR, modifier = loopIconModifier)
-                LoopState.LOOP_ONE -> Icons.LoopOneIcon(color = TITLE_COLOR, modifier = loopIconModifier)
-                LoopState.PLAY_ALL -> Icons.PlayAllIcon(color = TITLE_COLOR, modifier = loopIconModifier)
-                LoopState.PLAY_ONE -> Icons.PlayOneIcon(color = TITLE_COLOR, modifier = loopIconModifier)
+            Column(Modifier.align(Alignment.CenterVertically)) {
+                Row {
+                    Icons.PrevIcon(color = TITLE_COLOR, modifier = Modifier.align(Alignment.CenterVertically))
+                    if (getState().playingState == PlayingState.PLAYING)
+                        Icons.PauseIcon(color = TITLE_COLOR, modifier = Modifier
+                            .clickable { playPauseSong() }
+                            .align(Alignment.CenterVertically))
+                    else
+                        Icons.PlayIcon(color = TITLE_COLOR, modifier = Modifier
+                            .clickable { playPauseSong() }
+                            .align(Alignment.CenterVertically))
+                    Icons.NextIcon(color = TITLE_COLOR, modifier = Modifier.clickable { playNextSong() }.align(Alignment.CenterVertically))
+                }
+                Row(Modifier.padding(0.dp, 4.dp, 0.dp, 0.dp)) {
+                    Icons.StopIcon(color = TITLE_COLOR, modifier = Modifier.clickable { stopSong() }.align(Alignment.CenterVertically))
+                    val shuffleIconModifier = Modifier
+                        .clickable { toggleShuffleState() }
+                        .align(Alignment.CenterVertically)
+                    if (getState().shuffle) {
+                        Icons.ShuffleIcon(color = TITLE_COLOR, modifier = shuffleIconModifier)
+                    } else {
+                        Icons.ShuffleOffIcon(color = TITLE_COLOR, modifier = shuffleIconModifier)
+                    }
+                    val loopIconModifier = Modifier
+                        .clickable { toggleLoopState() }
+                        .align(Alignment.CenterVertically)
+                    when (getState().loopState) {
+                        LoopState.LOOP_ALL -> Icons.LoopAllIcon(color = TITLE_COLOR, modifier = loopIconModifier)
+                        LoopState.LOOP_ONE -> Icons.LoopOneIcon(color = TITLE_COLOR, modifier = loopIconModifier)
+                        LoopState.PLAY_ALL -> Icons.PlayAllIcon(color = TITLE_COLOR, modifier = loopIconModifier)
+                        LoopState.PLAY_ONE -> Icons.PlayOneIcon(color = TITLE_COLOR, modifier = loopIconModifier)
+                    }
+                }
             }
         }
     }
@@ -365,15 +394,9 @@ fun App() {
 @Composable
 fun AboutRow(title: String, url: String) {
     Row(
-        Modifier
-            .clickable { openURL(url) }
-            .width(200.dp)
-            .padding(0.dp, 2.dp)) {
-        Icons.GithubIcon(color = TITLE_COLOR,
-            Modifier
-                .padding(4.dp)
-                .align(Alignment.CenterVertically)
-        )
+        Modifier.clickable { openURL(url) }.width(200.dp).padding(0.dp, 2.dp)
+    ) {
+        Icons.GithubIcon(color = TITLE_COLOR, Modifier.align(Alignment.CenterVertically).padding(4.dp))
         SubTitle(title, Modifier.align(Alignment.CenterVertically))
     }
 }
@@ -382,18 +405,20 @@ fun AboutRow(title: String, url: String) {
 fun SongRow(i: Int, name: String, author: String, highlight: Boolean, onClick: () -> Unit = {}) {
     val rowColor = if(highlight) TextColor.PRIMARY else TextColor.DEFAULT
     Row(
-        Modifier
-            .clickable(onClick = onClick)
-            .height(54.dp)) {
-        SubTitle("${i+1}",
-            Modifier
-                .padding(6.dp, 0.dp, 0.dp, 0.dp)
-                .align(Alignment.CenterVertically), color = rowColor)
+        Modifier.clickable(onClick = onClick).height(54.dp)
+    ) {
+        //Column(Modifier.width(24.dp)) {
+            SubTitle("${i+1}",
+                Modifier
+                    .align(Alignment.CenterVertically)
+                    .padding(6.dp, 0.dp, 0.dp, 0.dp), color = rowColor)
+        //}
         Column(
             Modifier
                 .fillMaxWidth()
-                .padding(8.dp, 4.dp, 32.dp, 4.dp)) {
-            // TODO: fadeout on right side
+                .align(Alignment.CenterVertically)
+                .padding(6.dp, 4.dp, 32.dp, 4.dp)) {
+            // TODO: fadeout on right side?
             Title(name.trim(), color = rowColor, wrap = false)
             SubTitle(author, color = rowColor, wrap = false)
         }
