@@ -85,12 +85,6 @@ fun App() {
     }
     val (nonce, setNonce) = rememberSaveable { mutableStateOf(0, neverEqualPolicy()) }
     fun getState() = GlobalContext._appState
-    /*fun setState(newState: AppState) {
-        synchronized(GlobalContext) {
-            GlobalContext._appState = newState
-            setNonce(nonce + 1)
-        }
-    }*/
     val setState: (AppState) -> Unit = { newState ->
         synchronized(GlobalContext) {
             GlobalContext._appState = newState
