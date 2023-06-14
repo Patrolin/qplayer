@@ -6,7 +6,8 @@ import kotlin.concurrent.thread
 
 object GlobalContext {
     // app state (rerender on change)
-    var _appState = AppState(true, listOf(), listOf(), listOf(), null, PlayingState.STOPPED, RingBuffer(8), true, LoopState.LOOP_ALL, 0)
+    var _appState = AppState(true, listOf(), RingBuffer(8), listOf(), listOf(), null,
+        PlayingState.STOPPED, true, LoopState.LOOP_ALL, 0)
     // global context (don't rerender on change)
     val mediaPlayer: MediaPlayer = MediaPlayer()
     var onCompletionListener: (() -> Unit)? = null
@@ -27,7 +28,7 @@ object GlobalContext {
                     setState(_appState.withCurrentPosition(currentPosition))
                     Thread.sleep((1000 - (currentPosition % 1000)).toLong())
                 }
-                setState(_appState.withCurrentPosition(GlobalContext.mediaPlayer.currentPosition))
+                setState(_appState.withCurrentPosition(mediaPlayer.currentPosition))
                 isPositionThreadRunning = false
             }
         }
@@ -51,9 +52,10 @@ object GlobalContext {
         mediaPlayer.start()
         _startPositionThread(setState)
     }
-    fun startSong(song: Song, setState: (v: AppState) -> Unit) {
-        _startSong(song, setState)
-        setState(_appState.start(_appState.songs, song))
+    fun startSong(playlist: List<Song>, song: Song?, setState: (v: AppState) -> Unit) {
+        val newState = _appState.start(playlist, song)
+        setState(newState)
+        _startSong(newState.playing!!, setState)
     }
     // top controls
     fun playPauseSong(setState: (v: AppState) -> Unit) {
@@ -69,8 +71,7 @@ object GlobalContext {
                 setState(_appState.togglePlayingState(PlayingState.PLAYING))
             }
             PlayingState.STOPPED -> {
-                val song = _appState.playing ?: _appState.songs.getOrNull(0) // TODO: state.next()
-                if (song != null) startSong(song, setState)
+                startSong(_appState.songs, null, setState)
             }
         }
     }
@@ -101,12 +102,12 @@ data class AppState(
     val songsLoading: Boolean,
     val songs: List<Song>,
     // playlist
+    val playHistory: RingBuffer<Song>,
     val playlist: List<Song>,
     // controls
     val playOrder: List<Song>,
     val playing: Song?,
     val playingState: PlayingState,
-    val shuffleHistory: RingBuffer<Song>,
     val shuffle: Boolean,
     val loopState: LoopState,
     val currentPosition: Int,
@@ -114,12 +115,17 @@ data class AppState(
     fun withSongs(newSongsPromise: Promise<List<Song>>): AppState {
         val newSongsLoading = newSongsPromise.state == PromiseState.LOADING
         val newSongs = newSongsPromise.value ?: listOf()
-        return AppState(newSongsLoading, newSongs, playlist, playOrder, playing, playingState, shuffleHistory, shuffle, loopState, currentPosition)
+        return AppState(newSongsLoading, newSongs, playHistory, playlist, playOrder, playing, playingState, shuffle, loopState, currentPosition)
     }
     // controls
-    fun start(newPlaylist: List<Song>, newPlaying: Song)
-            = AppState(songsLoading, songs, newPlaylist, listOf(), newPlaying,
-        PlayingState.PLAYING, shuffleHistory, shuffle, loopState, 0).reshuffle()
+    private fun _withPlaying(newPlaying: Song?)
+        = AppState(songsLoading, songs, playHistory, playlist, playOrder, newPlaying,
+            playingState, shuffle, loopState, currentPosition)
+    fun start(newPlaylist: List<Song>, newPlaying: Song?): AppState {
+        val newState = AppState(songsLoading, songs, playHistory, newPlaylist, listOf(), newPlaying,
+            PlayingState.PLAYING, shuffle, loopState, 0).reshuffle()
+        return newState._withPlaying(newPlaying ?: newState.playOrder.getOrNull(0))
+    }
     private fun reshuffle(): AppState {
         val newPlayOrder = if (shuffle) {
             val newPlayOrder = playlist.shuffled().toMutableList()
@@ -135,7 +141,7 @@ data class AppState(
         }
         // TODO: save last n history
         // TODO: don't repeat last log p songs
-        return AppState(songsLoading, songs, playlist, newPlayOrder, playing, playingState, shuffleHistory, shuffle, loopState, currentPosition)
+        return AppState(songsLoading, songs, playHistory, playlist, newPlayOrder, playing, playingState, shuffle, loopState, currentPosition)
     }
     // TODO: prev
     fun next(): AppState {
@@ -147,8 +153,8 @@ data class AppState(
                 if (nextIndex < playOrder.size) {
                     nextIndex
                 } else {
-                    newPlayOrder = this.reshuffle().playOrder
-                    if (playOrder.size >= 2) 1 else 0 // TODO: fix .reshuffle()
+                    newPlayOrder = this._withPlaying(null).reshuffle().playOrder
+                    0
                 }
             }
             LoopState.LOOP_ONE -> playingIndex
@@ -157,16 +163,16 @@ data class AppState(
         }
         val newPlaying = if (nextIndex < newPlayOrder.size) newPlayOrder[nextIndex] else null
         val newPlayingState = if (newPlaying != null) playingState else PlayingState.STOPPED
-        return AppState(songsLoading, songs, playlist, playOrder, newPlaying, newPlayingState, shuffleHistory, shuffle, loopState, currentPosition)
+        return AppState(songsLoading, songs, playHistory, playlist, playOrder, newPlaying, newPlayingState, shuffle, loopState, currentPosition)
     }
     fun togglePlayingState(newPlayingState: PlayingState, clearPlaying: Boolean = false): AppState {
         val newPlaying = if (clearPlaying) null else playing
-        return AppState(songsLoading, songs, playlist, playOrder, newPlaying, newPlayingState, shuffleHistory, shuffle, loopState, currentPosition)
+        return AppState(songsLoading, songs, playHistory, playlist, playOrder, newPlaying, newPlayingState, shuffle, loopState, currentPosition)
     }
     fun toggleShuffle(newShuffle: Boolean): AppState
-            = AppState(songsLoading, songs, playlist, listOf(), playing, playingState, shuffleHistory, newShuffle, loopState, currentPosition).reshuffle()
+            = AppState(songsLoading, songs, playHistory, playlist, listOf(), playing, playingState, newShuffle, loopState, currentPosition).reshuffle()
     fun toggleLoopState(newLoopState: LoopState)
-            = AppState(songsLoading, songs, playlist, playOrder, playing, playingState, shuffleHistory, shuffle, newLoopState, currentPosition)
+            = AppState(songsLoading, songs, playHistory, playlist, playOrder, playing, playingState, shuffle, newLoopState, currentPosition)
     fun withCurrentPosition(newCurrentPosition: Int): AppState
-            = AppState(songsLoading, songs, playlist, playOrder, playing, playingState, shuffleHistory, shuffle, loopState, newCurrentPosition)
+            = AppState(songsLoading, songs, playHistory, playlist, playOrder, playing, playingState, shuffle, loopState, newCurrentPosition)
 }

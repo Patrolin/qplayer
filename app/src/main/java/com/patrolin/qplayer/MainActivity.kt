@@ -132,7 +132,7 @@ fun App() {
                                             GlobalContext.stopSong(setState)
                                         } else {
                                             try {
-                                                GlobalContext.startSong(song, setState)
+                                                GlobalContext.startSong(state.songs, song, setState)
                                             } catch (error: Exception) {
                                                 errPrint("$error")
                                                 showToast("$error", Toast.LENGTH_LONG)
