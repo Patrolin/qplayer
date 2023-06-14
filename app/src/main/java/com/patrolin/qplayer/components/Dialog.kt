@@ -1,29 +1,41 @@
 package com.patrolin.qplayer.components
 
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.MutableState
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
+import androidx.compose.runtime.neverEqualPolicy
+import androidx.compose.runtime.saveable.Saver
+import androidx.compose.runtime.saveable.listSaver
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 
-class DialogState(val open: Boolean)
+class DialogState(defaultOpen: Boolean) {
+    var open by mutableStateOf(defaultOpen, neverEqualPolicy())
+    companion object {
+        val Saver: Saver<DialogState, *> = listSaver(
+            save = { listOf(it.open) },
+            restore = { DialogState(it[0]) },
+        )
+    }
+}
 @Composable
-fun rememberDialogState(defaultOpen: Boolean = false): MutableState<DialogState> {
-    return remember() {
-        mutableStateOf(DialogState(defaultOpen))
+fun rememberDialogState(): DialogState {
+    return rememberSaveable(saver = DialogState.Saver) {
+        DialogState(false)
     }
 }
 
 @OptIn(ExperimentalComposeUiApi::class)
 @Composable
-fun useDialog(content: @Composable () -> Unit): MutableState<DialogState> {
+fun useDialog(content: @Composable () -> Unit): DialogState {
     val dialogState = rememberDialogState()
-    if (dialogState.value.open) {
+    if (dialogState.open) {
         Dialog(
             onDismissRequest = {
-                dialogState.value = DialogState(false)
+                dialogState.open = false
             },
             properties = DialogProperties(
                 usePlatformDefaultWidth = true,

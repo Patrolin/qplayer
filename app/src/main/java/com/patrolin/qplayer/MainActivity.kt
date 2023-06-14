@@ -27,7 +27,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import com.patrolin.qplayer.components.DIVIDER_COLOR
-import com.patrolin.qplayer.components.DialogState
 import com.patrolin.qplayer.components.Icons
 import com.patrolin.qplayer.components.SUBTITLE_COLOR
 import com.patrolin.qplayer.components.SongsTab
@@ -83,7 +82,7 @@ fun App() {
     val rightBlock: @Composable RowScope.() -> Unit = {
         Icons.AboutIcon(SUBTITLE_COLOR, Modifier
             .clickable {
-                aboutDialog.value = DialogState(true)
+                aboutDialog.open = true
             }
             .padding(8.dp, 4.dp)
         )
