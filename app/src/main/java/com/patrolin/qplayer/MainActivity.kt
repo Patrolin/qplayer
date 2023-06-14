@@ -1,7 +1,5 @@
 package com.patrolin.qplayer
 
-import android.media.MediaPlayer
-import android.media.VolumeShaper
 import android.os.Bundle
 import android.widget.Toast
 import androidx.activity.ComponentActivity
@@ -38,21 +36,8 @@ import com.patrolin.qplayer.components.TextColor
 import com.patrolin.qplayer.components.Title
 import com.patrolin.qplayer.components.useDialog
 import com.patrolin.qplayer.components.useTabs
-import com.patrolin.qplayer.lib.Promise
-import com.patrolin.qplayer.lib.PromiseState
-import com.patrolin.qplayer.lib.READ_PERMISSIONS
-import com.patrolin.qplayer.lib.RingBuffer
-import com.patrolin.qplayer.lib.Song
-import com.patrolin.qplayer.lib.debounce
-import com.patrolin.qplayer.lib.errPrint
-import com.patrolin.qplayer.lib.getPermissionsText
-import com.patrolin.qplayer.lib.getSongsAsync
-import com.patrolin.qplayer.lib.onPermissionChange
-import com.patrolin.qplayer.lib.openURL
-import com.patrolin.qplayer.lib.requestPermissions
-import com.patrolin.qplayer.lib.showToast
+import com.patrolin.qplayer.lib.*
 import com.patrolin.qplayer.ui.theme.QPlayerTheme
-import kotlin.concurrent.thread
 
 lateinit var appContext: MainActivity
 class MainActivity : ComponentActivity() {
@@ -80,106 +65,6 @@ class MainActivity : ComponentActivity() {
     }
 }
 
-object GlobalContext {
-    // app state (rerender on change)
-    var _appState = AppState(true, listOf(), listOf(), listOf(), null, PlayingState.STOPPED, RingBuffer(8), false, LoopState.LOOP_ALL, 0)
-    // global context (don't rerender on change)
-    val mediaPlayer: MediaPlayer = MediaPlayer()
-    var isPositionThreadRunning = false
-    var onCompletionListener: (() -> Unit)? = null
-    private val oclDebounce = debounce(100) { onCompletionListener?.invoke() } // MediaPlayer is garbage and calls this twice
-    init {
-        mediaPlayer.setOnCompletionListener {
-            oclDebounce()
-        }
-    }
-    private fun getAudioShaper(shape: FloatArray): VolumeShaper {
-        return mediaPlayer.createVolumeShaper(
-            VolumeShaper.Configuration.Builder()
-                .setDuration(1L)
-                .setCurve(floatArrayOf(0f, 1f), shape)
-                .setInterpolatorType(VolumeShaper.Configuration.INTERPOLATOR_TYPE_CUBIC)
-                .build()
-        )
-    }
-    val audioFadeIn: VolumeShaper get() = getAudioShaper(floatArrayOf(0f, 1f))
-}
-enum class PlayingState { STOPPED, PLAYING, PAUSED }
-enum class LoopState { LOOP_ALL, LOOP_ONE, PLAY_ALL, PLAY_ONE }
-data class AppState(
-    val songsLoading: Boolean,
-    val songs: List<Song>,
-    // playlist
-    val playlist: List<Song>,
-    // controls
-    val playOrder: List<Song>,
-    val playing: Song?,
-    val playingState: PlayingState,
-    val shuffleHistory: RingBuffer<Song>,
-    val shuffle: Boolean,
-    val loopState: LoopState,
-    val currentPosition: Int,
-) {
-    fun withSongs(newSongsPromise: Promise<List<Song>>): AppState {
-        val newSongsLoading = newSongsPromise.state == PromiseState.LOADING
-        val newSongs = newSongsPromise.value ?: listOf()
-        return AppState(newSongsLoading, newSongs, playlist, playOrder, playing, playingState, shuffleHistory, shuffle, loopState, currentPosition)
-    }
-    // controls
-    fun start(newPlaylist: List<Song>, newPlaying: Song)
-        = AppState(songsLoading, songs, newPlaylist, listOf(), newPlaying,
-            PlayingState.PLAYING, shuffleHistory, shuffle, loopState, 0).reshuffle()
-    private fun reshuffle(): AppState {
-        val newPlayOrder = if (shuffle) {
-            val newPlayOrder = playlist.shuffled().toMutableList()
-            val playingIndex = newPlayOrder.indexOf(playing)
-            if (playingIndex != -1) {
-                val tmp = newPlayOrder[0]
-                newPlayOrder[0] = newPlayOrder[playingIndex]
-                newPlayOrder[playingIndex] = tmp
-            }
-            newPlayOrder
-        } else {
-            playlist
-        }
-        // TODO: save last n history
-        // TODO: don't repeat last log p songs
-        return AppState(songsLoading, songs, playlist, newPlayOrder, playing, playingState, shuffleHistory, shuffle, loopState, currentPosition)
-    }
-    // TODO: prev
-    fun next(): AppState {
-        val playingIndex = playOrder.indexOf(playing)
-        var newPlayOrder = playOrder
-        val nextIndex = when(loopState) {
-            LoopState.LOOP_ALL -> {
-                val nextIndex = playingIndex + 1
-                if (nextIndex < playOrder.size) {
-                    nextIndex
-                } else {
-                    newPlayOrder = this.reshuffle().playOrder
-                    if (playOrder.size >= 2) 1 else 0 // TODO: fix .reshuffle()
-                }
-            }
-            LoopState.LOOP_ONE -> playingIndex
-            LoopState.PLAY_ALL -> playingIndex + 1
-            LoopState.PLAY_ONE -> playOrder.size
-        }
-        val newPlaying = if (nextIndex < newPlayOrder.size) newPlayOrder[nextIndex] else null
-        val newPlayingState = if (newPlaying != null) playingState else PlayingState.STOPPED
-        return AppState(songsLoading, songs, playlist, playOrder, newPlaying, newPlayingState, shuffleHistory, shuffle, loopState, currentPosition)
-    }
-    fun togglePlayingState(newPlayingState: PlayingState, clearPlaying: Boolean = false): AppState {
-        val newPlaying = if (clearPlaying) null else playing
-        return AppState(songsLoading, songs, playlist, playOrder, newPlaying, newPlayingState, shuffleHistory, shuffle, loopState, currentPosition)
-    }
-    fun toggleShuffle(newShuffle: Boolean): AppState
-        = AppState(songsLoading, songs, playlist, listOf(), playing, playingState, shuffleHistory, newShuffle, loopState, currentPosition).reshuffle()
-    fun toggleLoopState(newLoopState: LoopState)
-        = AppState(songsLoading, songs, playlist, playOrder, playing, playingState, shuffleHistory, shuffle, newLoopState, currentPosition)
-    fun withCurrentPosition(newCurrentPosition: Int): AppState
-        = AppState(songsLoading, songs, playlist, playOrder, playing, playingState, shuffleHistory, shuffle, loopState, newCurrentPosition)
-}
-
 @Composable
 fun App() {
     val aboutDialog = useDialog() {
@@ -200,7 +85,13 @@ fun App() {
     }
     val (nonce, setNonce) = rememberSaveable { mutableStateOf(0, neverEqualPolicy()) }
     fun getState() = GlobalContext._appState
-    fun setState(newState: AppState) {
+    /*fun setState(newState: AppState) {
+        synchronized(GlobalContext) {
+            GlobalContext._appState = newState
+            setNonce(nonce + 1)
+        }
+    }*/
+    val setState: (AppState) -> Unit = { newState ->
         synchronized(GlobalContext) {
             GlobalContext._appState = newState
             setNonce(nonce + 1)
@@ -208,7 +99,7 @@ fun App() {
     }
     val haveReadPermissions = requestPermissions(*READ_PERMISSIONS) {
         errPrint("Permission change!")
-        setState(getState().copy())
+        setState(getState())
     }
     LaunchedEffect(haveReadPermissions) {
         if (haveReadPermissions) {
@@ -217,79 +108,8 @@ fun App() {
             }
         }
     }
-
-    fun _startPositionThread() {
-        if (!GlobalContext.isPositionThreadRunning) {
-            GlobalContext.isPositionThreadRunning = true
-            thread {
-                while (getState().playingState == PlayingState.PLAYING) {
-                    val currentPosition = GlobalContext.mediaPlayer.currentPosition
-                    setState(getState().withCurrentPosition(currentPosition))
-                    Thread.sleep((1000 - (currentPosition % 1000)).toLong())
-                }
-                setState(getState().withCurrentPosition(GlobalContext.mediaPlayer.currentPosition))
-                GlobalContext.isPositionThreadRunning = false
-            }
-        }
-    }
-    fun _startSong(song: Song) {
-        errPrint("Playing: $song")
-        GlobalContext.mediaPlayer.reset()
-        GlobalContext.mediaPlayer.setDataSource(song.path)
-        GlobalContext.audioFadeIn.apply(VolumeShaper.Operation.PLAY)
-        GlobalContext.mediaPlayer.prepare()
-        GlobalContext.mediaPlayer.start()
-        _startPositionThread()
-    }
-    fun startSong(song: Song) {
-        _startSong(song)
-        val state = getState()
-        setState(state.start(state.songs, song))
-    }
-    // top controls
-    fun playPauseSong() {
-        val state = getState()
-        when (state.playingState) {
-            PlayingState.PLAYING -> {
-                GlobalContext.mediaPlayer.pause()
-                setState(state.togglePlayingState(PlayingState.PAUSED))
-            }
-            PlayingState.PAUSED -> {
-                GlobalContext.audioFadeIn.apply(VolumeShaper.Operation.PLAY)
-                GlobalContext.mediaPlayer.start()
-                _startPositionThread()
-                setState(state.togglePlayingState(PlayingState.PLAYING))
-            }
-            PlayingState.STOPPED -> {
-                val song = state.playing ?: state.songs.getOrNull(0) // TODO: state.next()
-                if (song != null) startSong(song)
-            }
-        }
-    }
-    fun playNextSong() {
-        GlobalContext.mediaPlayer.stop()
-        val newState = getState().next()
-        if (newState.playing != null)
-            _startSong(newState.playing)
-        setState(newState)
-    }
     GlobalContext.onCompletionListener = {
-        playNextSong()
-    }
-    // bottom controls
-    fun stopSong() {
-        GlobalContext.mediaPlayer.stop()
-        setState(getState().togglePlayingState(PlayingState.STOPPED, true))
-    }
-    fun toggleShuffleState() {
-        val state = getState()
-        setState(state.toggleShuffle(!state.shuffle))
-    }
-    fun toggleLoopState() {
-        val state = getState()
-        val loopStates = listOf(LoopState.LOOP_ALL, LoopState.LOOP_ONE, LoopState.PLAY_ALL, LoopState.PLAY_ONE)
-        val newLoopState = loopStates[(loopStates.indexOf(state.loopState) + 1) % loopStates.size]
-        setState(state.toggleLoopState(newLoopState))
+        GlobalContext.playNextSong(setState)
     }
     // TODO: https://developer.android.com/guide/topics/media-apps/audio-focus#audio-focus-change
     // https://developer.android.com/reference/android/media/AudioManager
@@ -315,10 +135,10 @@ fun App() {
                                     val isPlaying = (song == state.playing) && (state.playingState == PlayingState.PLAYING)
                                     SongRow(it, song.name, song.artist, isPlaying) {
                                         if (isPlaying) {
-                                            stopSong()
+                                            GlobalContext.stopSong(setState)
                                         } else {
                                             try {
-                                                startSong(song)
+                                                GlobalContext.startSong(song, setState)
                                             } catch (error: Exception) {
                                                 errPrint("$error")
                                                 showToast("$error", Toast.LENGTH_LONG)
@@ -354,18 +174,18 @@ fun App() {
                     Icons.PrevIcon(color = TITLE_COLOR, modifier = Modifier.align(Alignment.CenterVertically))
                     if (getState().playingState == PlayingState.PLAYING)
                         Icons.PauseIcon(color = TITLE_COLOR, modifier = Modifier
-                            .clickable { playPauseSong() }
+                            .clickable { GlobalContext.playPauseSong(setState) }
                             .align(Alignment.CenterVertically))
                     else
                         Icons.PlayIcon(color = TITLE_COLOR, modifier = Modifier
-                            .clickable { playPauseSong() }
+                            .clickable { GlobalContext.playPauseSong(setState) }
                             .align(Alignment.CenterVertically))
-                    Icons.NextIcon(color = TITLE_COLOR, modifier = Modifier.clickable { playNextSong() }.align(Alignment.CenterVertically))
+                    Icons.NextIcon(color = TITLE_COLOR, modifier = Modifier.clickable { GlobalContext.playNextSong(setState) }.align(Alignment.CenterVertically))
                 }
                 Row(Modifier.padding(0.dp, 4.dp, 0.dp, 0.dp)) {
-                    Icons.StopIcon(color = TITLE_COLOR, modifier = Modifier.clickable { stopSong() }.align(Alignment.CenterVertically))
+                    Icons.StopIcon(color = TITLE_COLOR, modifier = Modifier.clickable { GlobalContext.stopSong(setState) }.align(Alignment.CenterVertically))
                     val shuffleIconModifier = Modifier
-                        .clickable { toggleShuffleState() }
+                        .clickable { GlobalContext.toggleShuffleState(setState) }
                         .align(Alignment.CenterVertically)
                     if (getState().shuffle) {
                         Icons.ShuffleIcon(color = TITLE_COLOR, modifier = shuffleIconModifier)
@@ -373,7 +193,7 @@ fun App() {
                         Icons.ShuffleOffIcon(color = TITLE_COLOR, modifier = shuffleIconModifier)
                     }
                     val loopIconModifier = Modifier
-                        .clickable { toggleLoopState() }
+                        .clickable { GlobalContext.toggleLoopState(setState) }
                         .align(Alignment.CenterVertically)
                     when (getState().loopState) {
                         LoopState.LOOP_ALL -> Icons.LoopAllIcon(color = TITLE_COLOR, modifier = loopIconModifier)
@@ -403,12 +223,10 @@ fun SongRow(i: Int, name: String, author: String, highlight: Boolean, onClick: (
     Row(
         Modifier.clickable(onClick = onClick).height(54.dp)
     ) {
-        //Column(Modifier.width(24.dp)) {
-            SubTitle("${i+1}",
-                Modifier
-                    .align(Alignment.CenterVertically)
-                    .padding(6.dp, 0.dp, 0.dp, 0.dp), color = rowColor)
-        //}
+        SubTitle("${i+1}",
+            Modifier
+                .align(Alignment.CenterVertically)
+                .padding(6.dp, 0.dp, 0.dp, 0.dp), color = rowColor)
         Column(
             Modifier
                 .fillMaxWidth()
