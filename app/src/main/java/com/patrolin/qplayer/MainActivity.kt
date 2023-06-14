@@ -115,7 +115,7 @@ fun App() {
     // https://developer.android.com/reference/android/media/AudioManager
     Column() {
         useTabs(0, listOf("Songs", "Playlists"), rightBlock=rightBlock) { selectedTab ->
-            // TODO: playOrder tab
+            // TODO: split playlist tab
             when (selectedTab) {
                 0 -> {
                     if (!haveReadPermissions) {
