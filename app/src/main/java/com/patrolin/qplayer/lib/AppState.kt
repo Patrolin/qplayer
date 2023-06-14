@@ -6,7 +6,7 @@ import kotlin.concurrent.thread
 
 object GlobalContext {
     // app state (rerender on change)
-    var _appState = AppState(true, listOf(), listOf(), listOf(), null, PlayingState.STOPPED, RingBuffer(8), false, LoopState.LOOP_ALL, 0)
+    var _appState = AppState(true, listOf(), listOf(), listOf(), null, PlayingState.STOPPED, RingBuffer(8), true, LoopState.LOOP_ALL, 0)
     // global context (don't rerender on change)
     val mediaPlayer: MediaPlayer = MediaPlayer()
     var onCompletionListener: (() -> Unit)? = null

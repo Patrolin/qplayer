@@ -230,8 +230,8 @@ fun SongRow(i: Int, name: String, author: String, highlight: Boolean, onClick: (
                 .padding(6.dp, 0.dp, 0.dp, 0.dp), color = rowColor)
         Column(
             Modifier
-                .fillMaxWidth()
                 .align(Alignment.CenterVertically)
+                .fillMaxWidth()
                 .padding(6.dp, 4.dp, 32.dp, 4.dp)) {
             // TODO: fadeout on right side?
             Title(name.trim(), color = rowColor, wrap = false)
