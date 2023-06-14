@@ -40,6 +40,7 @@ fun getVideoFolder(): File = Environment.getExternalStoragePublicDirectory(Envir
 data class Song(val path: String, val name: String, val artist: String)
 fun getSongsAsync(): Promise<List<Song>> {
     return Promise {
+        // TODO: multithreading
         errPrint("Getting songs...")
         var i = 0
         val songs = getMusicFolder().walk().filter { it.isFile }.map { file ->
