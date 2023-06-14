@@ -22,6 +22,9 @@ class Parser(file: File): Closeable {
     }
     override fun close() = _reader.close()
     // public
+    fun skipBytes(size: Long) {
+        _reader.skip(size)
+    }
     fun readBytes(size: Int): List<Int> {
         return buildList(size) {
             for (i in 0.until(size))
@@ -133,9 +136,8 @@ fun parseID3v2(file: File): String {
                         else -> Charsets.UTF_8
                     }
                     //errPrint("pos: $pos, id: $id, frameSize: $frameSize, flags: $flags, textEncoding: $textEncoding")
-                    // TODO: is this a bug in the parser?
                     if (frameSize > 4096) {
-                        errPrint("-- malformed ID3")
+                        errPrint("-- skipping ID3 tag: $id ($frameSize)") // probably invalid and takes too long to parse
                         pos += frameSize
                         return
                     }

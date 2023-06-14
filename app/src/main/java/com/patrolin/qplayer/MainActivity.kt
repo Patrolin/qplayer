@@ -4,6 +4,7 @@ import android.os.Bundle
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -24,6 +25,7 @@ import androidx.compose.runtime.neverEqualPolicy
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import com.patrolin.qplayer.components.DIVIDER_COLOR
 import com.patrolin.qplayer.components.DialogState
@@ -68,8 +70,7 @@ class MainActivity : ComponentActivity() {
 @Composable
 fun App() {
     val aboutDialog = useDialog() {
-        // TODO: give this a background
-        Column(Modifier.padding(4.dp)) {
+        Column(Modifier.background(Color.Black).padding(4.dp)) {
             Title("About", Modifier.padding(4.dp, 0.dp, 0.dp, 0.dp))
             AboutRow("Qplayer (Unlicense)", "https://github.com/Patrolin/qplayer")
             AboutRow("yt-dlp (Unlicense)", "https://github.com/yt-dlp/yt-dlp")
