@@ -2,6 +2,7 @@ package com.patrolin.qplayer.lib
 
 import android.media.MediaPlayer
 import android.media.VolumeShaper
+import kotlinx.coroutines.Job
 import kotlin.concurrent.thread
 
 object GlobalContext {
@@ -11,7 +12,7 @@ object GlobalContext {
     // global context (don't rerender on change)
     val mediaPlayer: MediaPlayer = MediaPlayer()
     var onCompletionListener: (() -> Unit)? = null
-    private val oclDebounce = debounce(100) { onCompletionListener?.invoke() } // MediaPlayer is garbage and calls this twice
+    private val oclDebounce = debounce(250) { onCompletionListener?.invoke() } // MediaPlayer is garbage and calls this twice
     init {
         mediaPlayer.setOnCompletionListener {
             oclDebounce()
@@ -19,7 +20,7 @@ object GlobalContext {
     }
     // song row
     var isPositionThreadRunning = false
-    private fun _startPositionThread(setState: (v: AppState) -> Unit) {
+    private fun _startPositionThread(setState: (AppState) -> Unit) {
         if (!isPositionThreadRunning) {
             isPositionThreadRunning = true
             thread {
@@ -43,7 +44,7 @@ object GlobalContext {
         )
     }
     val audioFadeIn: VolumeShaper get() = getAudioShaper(floatArrayOf(0f, 1f))
-    private fun _startSong(song: Song, setState: (v: AppState) -> Unit) {
+    private fun _startSong(song: Song, setState: (AppState) -> Unit) {
         errPrint("Starting: $song")
         mediaPlayer.reset()
         mediaPlayer.setDataSource(song.path)
@@ -52,13 +53,14 @@ object GlobalContext {
         mediaPlayer.start()
         _startPositionThread(setState)
     }
-    fun startSong(playlist: List<Song>, song: Song?, setState: (v: AppState) -> Unit) {
+    fun startSong(playlist: List<Song>, song: Song?, setState: (AppState) -> Unit, switchAndScrollToPlaying: () -> Job) {
         val newState = _appState.start(playlist, song)
         setState(newState)
         _startSong(newState.playing!!, setState)
+        switchAndScrollToPlaying()
     }
     // top controls
-    fun playPauseSong(setState: (v: AppState) -> Unit) {
+    fun playPauseSong(setState: (AppState) -> Unit, switchAndScrollToPlaying: () -> Job) {
         when (_appState.playingState) {
             PlayingState.PLAYING -> {
                 mediaPlayer.pause()
@@ -71,11 +73,11 @@ object GlobalContext {
                 setState(_appState.togglePlayingState(PlayingState.PLAYING))
             }
             PlayingState.STOPPED -> {
-                startSong(_appState.songs, null, setState)
+                startSong(_appState.songs, null, setState, switchAndScrollToPlaying)
             }
         }
     }
-    fun playNextSong(setState: (v: AppState) -> Unit) {
+    fun playNextSong(setState: (AppState) -> Unit) {
         mediaPlayer.stop()
         val newState = _appState.next()
         if (newState.playing != null)
@@ -83,14 +85,14 @@ object GlobalContext {
         setState(newState)
     }
     // bottom controls
-    fun stopSong(setState: (v: AppState) -> Unit) {
+    fun stopSong(setState: (AppState) -> Unit) {
         mediaPlayer.stop()
         setState(_appState.togglePlayingState(PlayingState.STOPPED, true))
     }
-    fun toggleShuffleState(setState: (v: AppState) -> Unit) {
+    fun toggleShuffleState(setState: (AppState) -> Unit) {
         setState(_appState.toggleShuffle(!_appState.shuffle))
     }
-    fun toggleLoopState(setState: (v: AppState) -> Unit) {
+    fun toggleLoopState(setState: (AppState) -> Unit) {
         val loopStates = listOf(LoopState.LOOP_ALL, LoopState.LOOP_ONE, LoopState.PLAY_ALL, LoopState.PLAY_ONE)
         val newLoopState = loopStates[(loopStates.indexOf(_appState.loopState) + 1) % loopStates.size]
         setState(_appState.toggleLoopState(newLoopState))

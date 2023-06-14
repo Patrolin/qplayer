@@ -1,7 +1,6 @@
 package com.patrolin.qplayer
 
 import android.os.Bundle
-import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.background
@@ -14,7 +13,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material3.Divider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -31,15 +30,20 @@ import com.patrolin.qplayer.components.DIVIDER_COLOR
 import com.patrolin.qplayer.components.DialogState
 import com.patrolin.qplayer.components.Icons
 import com.patrolin.qplayer.components.SUBTITLE_COLOR
+import com.patrolin.qplayer.components.SongsTab
 import com.patrolin.qplayer.components.SubTitle
 import com.patrolin.qplayer.components.TITLE_COLOR
+import com.patrolin.qplayer.components.Tabs
 import com.patrolin.qplayer.components.Text
 import com.patrolin.qplayer.components.TextColor
 import com.patrolin.qplayer.components.Title
+import com.patrolin.qplayer.components.rememberTabsState
 import com.patrolin.qplayer.components.useDialog
-import com.patrolin.qplayer.components.useTabs
 import com.patrolin.qplayer.lib.*
 import com.patrolin.qplayer.ui.theme.QPlayerTheme
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 
 lateinit var appContext: MainActivity
 class MainActivity : ComponentActivity() {
@@ -103,49 +107,39 @@ fun App() {
             }
         }
     }
+    // TODO: list perf: https://developer.android.com/jetpack/compose/lists
+    val tabsState = rememberTabsState(1)
+    val playingTabScrollState = rememberLazyListState(0, 0)
+    val songsTabScrollState = rememberLazyListState(0, 0)
+    val switchAndScrollToPlaying = {
+        val state = getState()
+        CoroutineScope(Dispatchers.Main).launch {
+            tabsState.selectedIndex = 0
+            setNonce(nonce + 1)
+            val playingIndex = state.playOrder.indexOf(state.playing)
+            if (playingIndex >= 0) {
+                playingTabScrollState.scrollToItem(playingIndex, 0)
+            }
+        }
+    }
     GlobalContext.onCompletionListener = {
         GlobalContext.playNextSong(setState)
+        switchAndScrollToPlaying()
     }
     // TODO: https://developer.android.com/guide/topics/media-apps/audio-focus#audio-focus-change
     // https://developer.android.com/reference/android/media/AudioManager
     Column() {
-        useTabs(0, listOf("Songs", "Playlists"), rightBlock=rightBlock) { selectedTab ->
-            // TODO: split playlist tab
+        Tabs(tabsState, listOf("Playing", "Songs", "Playlists"), rightBlock=rightBlock) { selectedTab ->
             when (selectedTab) {
                 0 -> {
-                    if (!haveReadPermissions) {
-                        Text(getPermissionsText("read"), Modifier.weight(1f))
-                    } else if (getState().songsLoading) {
-                        Text("Loading...", Modifier.weight(1f))
-                    } else if (getState().songs.isEmpty()) {
-                        Text("No songs yet, try adding a Youtube playlist or adding songs to your Music folder!", Modifier.weight(1f))
-                    } else {
-                        LazyColumn(Modifier.weight(1f)) {
-                            items(
-                                count = getState().songs.size,
-                                key = { it },
-                                itemContent = {
-                                    val state = getState()
-                                    val song = state.songs[it]
-                                    val isPlaying = (song == state.playing) && (state.playingState == PlayingState.PLAYING)
-                                    SongRow(it, song.name, song.artist, isPlaying) {
-                                        if (isPlaying) {
-                                            GlobalContext.stopSong(setState)
-                                        } else {
-                                            try {
-                                                GlobalContext.startSong(state.songs, song, setState)
-                                            } catch (error: Exception) {
-                                                errPrint("$error")
-                                                showToast("$error", Toast.LENGTH_LONG)
-                                            }
-                                        }
-                                    }
-                                }
-                            )
-                        }
-                    }
+                    val state = getState()
+                    SongsTab(state, setState, haveReadPermissions, state.playOrder, true, switchAndScrollToPlaying, playingTabScrollState)
                 }
                 1 -> {
+                    val state = getState()
+                    SongsTab(state, setState, haveReadPermissions, state.songs, false, switchAndScrollToPlaying, songsTabScrollState)
+                }
+                2 -> {
                     Row(Modifier.weight(1f)) {
                         Text("TODO: playlists")
                     }
@@ -169,18 +163,22 @@ fun App() {
                     Icons.PrevIcon(color = TITLE_COLOR, modifier = Modifier.align(Alignment.CenterVertically))
                     if (getState().playingState == PlayingState.PLAYING)
                         Icons.PauseIcon(color = TITLE_COLOR, modifier = Modifier
-                            .clickable { GlobalContext.playPauseSong(setState) }
+                            .clickable { GlobalContext.playPauseSong(setState, switchAndScrollToPlaying) }
                             .align(Alignment.CenterVertically))
                     else
                         Icons.PlayIcon(color = TITLE_COLOR, modifier = Modifier
-                            .clickable { GlobalContext.playPauseSong(setState) }
+                            .clickable { GlobalContext.playPauseSong(setState, switchAndScrollToPlaying) }
                             .align(Alignment.CenterVertically))
                     Icons.NextIcon(color = TITLE_COLOR, modifier = Modifier.clickable { GlobalContext.playNextSong(setState) }.align(Alignment.CenterVertically))
                 }
                 Row(Modifier.padding(0.dp, 4.dp, 0.dp, 0.dp)) {
                     Icons.StopIcon(color = TITLE_COLOR, modifier = Modifier.clickable { GlobalContext.stopSong(setState) }.align(Alignment.CenterVertically))
                     val shuffleIconModifier = Modifier
-                        .clickable { GlobalContext.toggleShuffleState(setState) }
+                        .clickable {
+                            GlobalContext.toggleShuffleState(setState)
+                            if (tabsState.selectedIndex == 0)
+                                switchAndScrollToPlaying()
+                        }
                         .align(Alignment.CenterVertically)
                     if (getState().shuffle) {
                         Icons.ShuffleIcon(color = TITLE_COLOR, modifier = shuffleIconModifier)
