@@ -223,6 +223,7 @@ fun SongRow(i: Int, name: String, author: String, highlight: Boolean, onClick: (
     Row(
         Modifier.clickable(onClick = onClick).height(54.dp)
     ) {
+        // TODO: fix this
         SubTitle("${i+1}",
             Modifier
                 .align(Alignment.CenterVertically)
