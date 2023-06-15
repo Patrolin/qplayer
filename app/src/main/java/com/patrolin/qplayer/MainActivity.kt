@@ -25,6 +25,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.dp
 import com.patrolin.qplayer.components.DIVIDER_COLOR
 import com.patrolin.qplayer.components.Icons
@@ -43,6 +44,7 @@ import com.patrolin.qplayer.ui.theme.QPlayerTheme
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlin.math.roundToInt
 
 lateinit var appContext: MainActivity
 class MainActivity : ComponentActivity() {
@@ -110,6 +112,7 @@ fun App() {
     val tabsState = rememberTabsState(1)
     val playingTabScrollState = rememberScrollState(0)
     val songsTabScrollState = rememberScrollState(0)
+    val pixelDensity = LocalDensity.current.density
     val switchAndScrollToPlaying = {
         val state = getState()
         CoroutineScope(Dispatchers.Main).launch {
@@ -117,7 +120,7 @@ fun App() {
             setNonce(nonce + 1)
             val playingIndex = state.playOrder.indexOf(state.playing)
             if (playingIndex >= 0) {
-                playingTabScrollState.scrollTo(playingIndex * 54)
+                playingTabScrollState.scrollTo((playingIndex * 54 * pixelDensity).roundToInt())
             }
         }
     }
