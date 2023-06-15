@@ -108,7 +108,6 @@ fun App() {
             }
         }
     }
-    // TODO: list perf: https://developer.android.com/jetpack/compose/lists
     val tabsState = rememberTabsState(1)
     val playingTabScrollState = rememberScrollState(0)
     val songsTabScrollState = rememberScrollState(0)
