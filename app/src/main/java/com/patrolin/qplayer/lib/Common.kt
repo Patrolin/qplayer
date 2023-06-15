@@ -1,5 +1,6 @@
 package com.patrolin.qplayer.lib
 
+import android.graphics.Rect
 import android.os.Build
 import android.os.Environment
 import android.util.Log
@@ -16,10 +17,14 @@ fun getAppName(): String {
     val stringId = appInfo.labelRes
     return if (stringId == 0) appInfo.nonLocalizedLabel.toString() else appContext.getString(stringId)
 }
+fun getScreenSize() : Rect {
+    return appContext.windowManager.currentWindowMetrics.bounds
+}
 
 fun errPrint(message: String) {
     Log.d("AYAYA", message)
 }
+fun getTimeStamp(): Long = System.currentTimeMillis()
 class Debounce(private val delay: Int) {
     private var lastCall = System.currentTimeMillis()
     fun call(callback: (() -> Unit)?) {

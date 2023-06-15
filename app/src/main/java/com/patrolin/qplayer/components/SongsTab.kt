@@ -1,10 +1,9 @@
 package com.patrolin.qplayer.components
 
 import android.widget.Toast
+import androidx.compose.foundation.ScrollState
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
@@ -21,7 +20,7 @@ import kotlinx.coroutines.Job
 @Composable
 fun ColumnScope.SongsTab(
     state: AppState, setState: (AppState) -> Unit,
-    haveReadPermissions: Boolean, playlist: List<Song>, isPlayingTab: Boolean, switchAndScrollToPlaying: () -> Job, scrollState: LazyListState,
+    haveReadPermissions: Boolean, playlist: List<Song>, isPlayingTab: Boolean, switchAndScrollToPlaying: () -> Job, scrollState: ScrollState,
 ) {
     if (!haveReadPermissions) {
         Text(getPermissionsText("read"), Modifier.padding(6.dp, 0.dp).weight(1f))
@@ -32,27 +31,20 @@ fun ColumnScope.SongsTab(
             else "No songs yet, try adding a Youtube playlist or adding songs to your Music folder!"
         Text(noSongsMessage, Modifier.padding(6.dp, 0.dp).weight(1f))
     } else {
-        LazyColumn(Modifier.weight(1f), state=scrollState) {
-            items(
-                count = playlist.size,
-                key = { it },
-                itemContent = {
-                    val song = playlist[it]
-                    val isPlaying = (song == state.playing) && (state.playingState == PlayingState.PLAYING)
-                    SongRow(it, song.name, song.artist, isPlaying) {
-                        if (isPlaying) {
-                            GlobalContext.stopSong(setState)
-                        } else {
-                            try {
-                                GlobalContext.startSong(state.songs, song, setState, switchAndScrollToPlaying)
-                            } catch (error: Exception) {
-                                errPrint("$error")
-                                showToast("$error", Toast.LENGTH_LONG)
-                            }
-                        }
+        BetterLazyColumn(scrollState, playlist, 54, Modifier.weight(1f), maxIndexOffset = -2) {index, song ->
+            val isPlaying = (song == state.playing) && (state.playingState == PlayingState.PLAYING)
+            SongRow(index, song.name, song.artist, isPlaying) {
+                if (isPlaying) {
+                    GlobalContext.stopSong(setState)
+                } else {
+                    try {
+                        GlobalContext.startSong(state.songs, song, setState, switchAndScrollToPlaying)
+                    } catch (error: Exception) {
+                        errPrint("$error")
+                        showToast("$error", Toast.LENGTH_LONG)
                     }
                 }
-            )
+            }
         }
     }
 }

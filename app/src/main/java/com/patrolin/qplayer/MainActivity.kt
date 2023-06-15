@@ -13,7 +13,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material3.Divider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -108,8 +108,8 @@ fun App() {
     }
     // TODO: list perf: https://developer.android.com/jetpack/compose/lists
     val tabsState = rememberTabsState(1)
-    val playingTabScrollState = rememberLazyListState(0, 0)
-    val songsTabScrollState = rememberLazyListState(0, 0)
+    val playingTabScrollState = rememberScrollState(0)
+    val songsTabScrollState = rememberScrollState(0)
     val switchAndScrollToPlaying = {
         val state = getState()
         CoroutineScope(Dispatchers.Main).launch {
@@ -117,7 +117,7 @@ fun App() {
             setNonce(nonce + 1)
             val playingIndex = state.playOrder.indexOf(state.playing)
             if (playingIndex >= 0) {
-                playingTabScrollState.scrollToItem(playingIndex, 0)
+                playingTabScrollState.scrollTo(playingIndex * 54)
             }
         }
     }
