@@ -41,9 +41,6 @@ import com.patrolin.qplayer.components.rememberTabsState
 import com.patrolin.qplayer.components.useDialog
 import com.patrolin.qplayer.lib.*
 import com.patrolin.qplayer.ui.theme.QPlayerTheme
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
 
 lateinit var appContext: MainActivity
@@ -114,7 +111,7 @@ fun App() {
     val pixelDensity = LocalDensity.current.density
     val switchAndScrollToPlaying = {
         val state = getState()
-        CoroutineScope(Dispatchers.Main).launch {
+        launchConcurrent {
             tabsState.selectedIndex = 0
             setNonce(nonce + 1)
             val playingIndex = state.playOrder.indexOf(state.playing)

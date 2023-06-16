@@ -2,7 +2,6 @@ package com.patrolin.qplayer.lib
 
 import android.media.MediaPlayer
 import android.media.VolumeShaper
-import kotlinx.coroutines.Job
 import kotlin.concurrent.thread
 
 object GlobalContext {
@@ -53,14 +52,16 @@ object GlobalContext {
         mediaPlayer.start()
         _startPositionThread(setState)
     }
-    fun startSong(playlist: List<Song>, song: Song?, setState: (AppState) -> Unit, switchAndScrollToPlaying: () -> Job) {
+    fun startSong(playlist: List<Song>, song: Song?, setState: (AppState) -> Unit, switchAndScrollToPlaying: () -> Unit) {
         val newState = _appState.start(playlist, song)
         setState(newState)
-        _startSong(newState.playing!!, setState)
-        switchAndScrollToPlaying()
+        if (newState.playing != null) {
+            _startSong(newState.playing, setState)
+            switchAndScrollToPlaying()
+        }
     }
     // top controls
-    fun playPauseSong(setState: (AppState) -> Unit, switchAndScrollToPlaying: () -> Job) {
+    fun playPauseSong(setState: (AppState) -> Unit, switchAndScrollToPlaying: () -> Unit) {
         when (_appState.playingState) {
             PlayingState.PLAYING -> {
                 mediaPlayer.pause()

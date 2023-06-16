@@ -6,8 +6,6 @@ import android.os.Environment
 import android.util.Log
 import com.patrolin.qplayer.appContext
 import java.io.File
-import java.util.concurrent.Executors
-import java.util.concurrent.TimeUnit
 
 // common
 fun _getAndroidVersion() = Build.VERSION.RELEASE.replace("(\\d+[.]\\d+)(.*)","$1").toDouble()
@@ -47,23 +45,21 @@ fun getVideoFolder(): File = Environment.getExternalStoragePublicDirectory(Envir
 data class Song(val path: String, val name: String, val artist: String)
 fun getSongsAsync(): Promise<List<Song>> {
     return Promise {
-        //errPrint("available processors: ${Runtime.getRuntime().availableProcessors()}")
-        val threadPool = Executors.newWorkStealingPool()
-        errPrint("Getting songs...")
-        val accSongs = arrayListOf<Song>()
-        for (file in getMusicFolder().walk().filter { it.isFile }) {
-            threadPool.submit {
-                //errPrint("Parsing #${i++}")
-                val artist = parseID3v2(file)
-                val song = Song(file.absolutePath, file.name, artist)
-                synchronized(accSongs) {
-                    accSongs.add(song)
+        launchMultithreaded {
+            errPrint("Getting songs...")
+            val accSongs = arrayListOf<Song>()
+            for (file in getMusicFolder().walk().filter { it.isFile }) {
+                threadPool.submit {
+                    val artist = parseID3v2(file)
+                    val song = Song(file.absolutePath, file.name, artist)
+                    synchronized(accSongs) {
+                        accSongs.add(song)
+                    }
                 }
             }
+            joinThreads()
+            errPrint("Found ${accSongs.size} songs!")
+            resolve(accSongs.sortedBy { it.name.uppercase() })
         }
-        threadPool.shutdown()
-        threadPool.awaitTermination(2, TimeUnit.HOURS)
-        errPrint("Found ${accSongs.size} songs!")
-        resolve(accSongs.sortedBy { it.name })
     }
 }

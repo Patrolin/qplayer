@@ -15,12 +15,11 @@ import com.patrolin.qplayer.lib.Song
 import com.patrolin.qplayer.lib.errPrint
 import com.patrolin.qplayer.lib.getPermissionsText
 import com.patrolin.qplayer.lib.showToast
-import kotlinx.coroutines.Job
 
 @Composable
 fun ColumnScope.SongsTab(
     state: AppState, setState: (AppState) -> Unit,
-    haveReadPermissions: Boolean, playlist: List<Song>, isPlayingTab: Boolean, switchAndScrollToPlaying: () -> Job, scrollState: ScrollState,
+    haveReadPermissions: Boolean, playlist: List<Song>, isPlayingTab: Boolean, switchAndScrollToPlaying: () -> Unit, scrollState: ScrollState,
 ) {
     if (!haveReadPermissions) {
         Text(getPermissionsText("read"), Modifier.padding(6.dp, 0.dp).weight(1f))

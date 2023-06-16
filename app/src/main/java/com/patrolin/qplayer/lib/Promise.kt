@@ -1,20 +1,39 @@
 package com.patrolin.qplayer.lib
 
-import kotlinx.coroutines.DelicateCoroutinesApi
-import kotlinx.coroutines.GlobalScope
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import java.util.concurrent.ExecutorService
+import java.util.concurrent.Executors
+import java.util.concurrent.TimeUnit
+
+fun launchConcurrent(block: suspend CoroutineScope.() -> Unit) {
+    CoroutineScope(Dispatchers.Main).launch {
+        block()
+    }
+}
+fun getAvailableProcessors() = Runtime.getRuntime().availableProcessors()
+class MultithreadedScope {
+    val threadPool: ExecutorService = Executors.newWorkStealingPool()
+    fun joinThreads() {
+        threadPool.shutdown()
+        threadPool.awaitTermination(2, TimeUnit.HOURS)
+    }
+}
+fun launchMultithreaded(block: MultithreadedScope.() -> Unit) {
+    val multithreadedScope = MultithreadedScope()
+    block(multithreadedScope)
+}
 
 data class PromiseScope<T>(val resolve: (newResult: T) -> Unit, val reject: () -> Unit)
 enum class PromiseState { LOADING, LOADED, ERROR }
 typealias PromiseCallback<T> = (promise: Promise<T>) -> Unit
-@OptIn(DelicateCoroutinesApi::class)
 class Promise<T> {
     var state = PromiseState.LOADING
     var value: T? = null
     private var queue = ArrayDeque<PromiseCallback<T>>()
     constructor(create: PromiseScope<T>.() -> Unit) {
-        // TODO: use suspend / async {} ?
-        GlobalScope.launch {
+        launchConcurrent {
             create(PromiseScope({ newValue ->
                 state = PromiseState.LOADED
                 value = newValue
