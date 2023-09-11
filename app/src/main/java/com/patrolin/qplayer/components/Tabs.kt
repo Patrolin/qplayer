@@ -32,7 +32,6 @@ data class TabsState(val defaultIndex: Int) {
         )
     }
 }
-
 @Composable
 fun rememberTabsState(defaultIndex: Int = 0): TabsState {
     return rememberSaveable(saver = TabsState.Saver) {

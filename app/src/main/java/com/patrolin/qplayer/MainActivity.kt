@@ -86,6 +86,7 @@ fun App() {
             .padding(8.dp, 4.dp)
         )
     }
+    // TODO: is any of this correct? https://developer.android.com/jetpack/compose/side-effects
     val (nonce, setNonce) = rememberSaveable { mutableStateOf(0, neverEqualPolicy()) }
     fun getState() = GlobalContext._appState
     val setState: (AppState) -> Unit = { newState ->
